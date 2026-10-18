@@ -14,10 +14,11 @@ on:
 
 jobs:
   python:
-    if: ${{ github.event_name == 'push' || github.event.pull_request.head.repo.fork }}
     runs-on: ubuntu-latest
     container: python:${{ inputs.python-version }}
     services:
+      redis:
+        image: redis:7.4-alpine
       postgres:
         image: postgis/postgis:${{ inputs.postgis-version }}-alpine
         env:
@@ -28,6 +29,7 @@ jobs:
           --health-timeout 5s
           --health-retries 5
     env:
+      REDIS_URL: redis://redis:6379
       APP_SETTINGS: fittrackee.config.TestingConfig
       DATABASE_TEST_URL: "postgresql://fittrackee:fittrackee@postgres:5432/fittrackee_test"
       EMAIL_URL: "smtp://none:none@0.0.0.0:1025"
@@ -58,6 +60,12 @@ jobs:
       - name: Pytest with coverage
         if: ${{ inputs.with-coverage && inputs.python-version == '3.13' }}
         run: pytest fittrackee -n auto --maxprocesses=2  -p no:warnings --cov fittrackee --cov-report term-missing --maxfail=1
+
+      - name: Rint integration and test footprint
+        if: ${{ inputs.with-additional-check && inputs.python-version == '3.13' }}
+        run: |
+          DATABASE_URL="$DATABASE_TEST_URL" RINT_INTEGRATION=1 pytest tests_rint scripts/tests -q
+          python scripts/rint-test-footprint.py
 
       - name: Coveralls
         if: ${{ inputs.with-coverage && inputs.python-version == '3.13' && github.repository == 'SamR1/FitTrackee' }}

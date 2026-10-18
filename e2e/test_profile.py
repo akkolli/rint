@@ -1,24 +1,27 @@
 from selenium.webdriver.common.by import By
 
-from .utils import register_valid_user
+from .utils import register_valid_user, visible
 
 
 class TestProfile:
     def test_it_displays_user_profile(self, selenium):
         user = register_valid_user(selenium)
 
-        app_menu = selenium.find_element(By.CLASS_NAME, "nav-items-user-menu")
-        profile_link = app_menu.find_elements(By.CLASS_NAME, "nav-item")[0]
-        profile_link.click()
-        selenium.implicitly_wait(1)
+        visible(selenium, '.r-primary-nav a[href="/profile"]').click()
+        header = visible(selenium, ".r-profile-hero")
+        assert user["username"] in header.text
+        stats = header.find_elements(By.CLASS_NAME, "user-stat")
+        assert len(stats) == 3
+        for stat, label in zip(
+            stats, ["workouts", "following", "followers"], strict=True
+        ):
+            assert stat.find_element(By.CLASS_NAME, "stat-number").text == "0"
+            assert (
+                stat.find_element(By.CLASS_NAME, "stat-label").text.lower()
+                == label
+            )
 
-        user_header = selenium.find_element(By.CLASS_NAME, "user-header")
-        assert user["username"] in user_header.text
-        assert "0\nworkouts" in user_header.text
-        assert "0\nfollowing" in user_header.text
-        assert "0\nfollowers" in user_header.text
-
-        user_infos = selenium.find_element(By.ID, "user-infos")
+        user_infos = visible(selenium, "#user-infos")
         assert "Registration date" in user_infos.text
         assert "First name" not in user_infos.text
         assert "Last name" not in user_infos.text

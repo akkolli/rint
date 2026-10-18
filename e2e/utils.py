@@ -2,7 +2,8 @@ import os
 import random
 import re
 import string
-import time
+from email import policy
+from email.parser import Parser
 
 import requests
 from selenium.webdriver.common.by import By
@@ -23,10 +24,30 @@ def random_string(length=8):
     return "".join(random.choice(string.ascii_letters) for _ in range(length))
 
 
+def visible(selenium, selector):
+    return WebDriverWait(selenium, 20).until(
+        EC.visibility_of_element_located((By.CSS_SELECTOR, selector))
+    )
+
+
+def logout(selenium):
+    visible(selenium, 'summary[aria-label="Account menu"]').click()
+    WebDriverWait(selenium, 10).until(
+        EC.element_to_be_clickable(
+            (
+                By.XPATH,
+                '//div[contains(@class, "r-account-options")]/button'
+                '[normalize-space()="Logout"]',
+            )
+        )
+    ).click()
+    visible(selenium, "#modal .confirm").click()
+    visible(selenium, '#nav a[href="/login"]')
+
+
 def register(selenium, user):
     selenium.get(f"{TEST_URL}/register")
-    selenium.implicitly_wait(1)
-    user_form = selenium.find_element(By.ID, "user-form")
+    user_form = visible(selenium, "#user-form")
     username = user_form.find_element(By.ID, "username")
     username.send_keys(user.get("username"))
     email = user_form.find_element(By.ID, "email")
@@ -41,8 +62,7 @@ def register(selenium, user):
 
 def login(selenium, user):
     selenium.get(f"{TEST_URL}/login")
-    selenium.implicitly_wait(1)
-    user_form = selenium.find_element(By.ID, "user-form")
+    user_form = visible(selenium, "#user-form")
     email = user_form.find_element(By.ID, "email")
     email.send_keys(user.get("email"))
     password = user_form.find_element(By.ID, "password")
@@ -66,32 +86,36 @@ def register_valid_user(selenium):
 
 def register_valid_user_and_logout(selenium):
     user = register_valid_user(selenium)
-    user_menu = selenium.find_element(By.CLASS_NAME, "nav-items-user-menu")
-    logout_button = user_menu.find_elements(By.CLASS_NAME, "logout-button")[0]
-    logout_button.click()
-    modal = selenium.find_element(By.ID, "modal")
-    confirm_button = modal.find_elements(By.CLASS_NAME, "confirm")[0]
-    confirm_button.click()
-    selenium.implicitly_wait(1)
+    logout(selenium)
     return user
 
 
 def confirm_account(selenium, user):
-    time.sleep(1)
-    response = requests.get(
-        f"{EMAIL_API_URL}/api/v2/search?kind=to&query={user['email']}",
-        timeout=60,
-    )
-    response.raise_for_status()
-    results = response.json()
-    message = results["items"][0]["Content"]["Body"]
-    link = re.search(r"Verify your email: (.+?)\r\n", message).groups()[0]
-    link = link.replace("http://0.0.0.0:5000", TEST_URL)
+    def confirmation_link(_):
+        response = requests.get(
+            f"{EMAIL_API_URL}/api/v2/search",
+            params={"kind": "to", "query": user["email"]},
+            timeout=10,
+        )
+        response.raise_for_status()
+        for item in response.json()["items"]:
+            message = Parser(policy=policy.default).parsestr(
+                item["Raw"]["Data"]
+            )
+            body = message.get_body(preferencelist=("plain",))
+            match = re.search(
+                r"Verify your email: (https?://\S+)", body.get_content()
+            )
+            if match:
+                return match.group(1).replace("http://0.0.0.0:5000", TEST_URL)
+        return False
+
+    link = WebDriverWait(selenium, 60).until(confirmation_link)
     selenium.get(link)
-    WebDriverWait(selenium, 15).until(EC.url_changes(link))
+    visible(selenium, 'summary[aria-label="Account menu"]')
 
 
 def login_valid_user(selenium, user):
     login(selenium, user)
-    WebDriverWait(selenium, 10).until(EC.url_changes(f"{TEST_URL}/login"))
+    visible(selenium, 'summary[aria-label="Account menu"]')
     return user

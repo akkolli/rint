@@ -1,14 +1,18 @@
-name: Python CI
+name: Rint backend and browser checks
 
 on:
   push:
     paths: [
       'fittrackee/**',
       'e2e/**',
+      'rint_core/**',
+      'tests_rint/**',
+      '.github/workflows/**',
       'pyproject.toml',
       'poetry.lock',
     ]
-  workflow_dispatch:  # manual trigger only
+  pull_request:
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -40,18 +44,8 @@ jobs:
       with-additional-check: false
       with-coverage: false
 
-  arm:
-    name: postgis 18-3.6 on arm platform (python 3.13)
-    uses: ./.github/workflows/.workflow-python.yml
-    with:
-      ubuntu-version: "ubuntu-24.04-arm"
-      python-version: "3.13"
-      postgis-version: "18-3.6"
-      with-additional-check: false
-      with-coverage: false
-
   end2end_with_sources:
-    name: e2e tests with sources (Node 20)
+    name: e2e tests with sources (Node 24)
     needs: ["python"]
     uses: ./.github/workflows/.workflow-e2e-with-sources.yml
 

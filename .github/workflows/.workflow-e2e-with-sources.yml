@@ -12,11 +12,10 @@ on:
         default: 3.6
       node-version:
         type: string
-        default: 20.x
+        default: 24.x
 
 jobs:
   end2end_with_sources:
-    if: ${{ github.event_name == 'push' || github.event.pull_request.head.repo.fork }}
     runs-on: ubuntu-latest
     container: python:${{ inputs.python-version }}
     services:
@@ -80,12 +79,14 @@ jobs:
           export TEST_APP_URL=http://$(hostname --ip-address):5000
           sleep 5
           nohup dramatiq fittrackee.tasks:broker --processes=1 >> nohup.out 2>&1 &
-          pytest e2e --driver Remote --capability browserName firefox --selenium-host selenium --selenium-port 4444 --maxfail=1
+          pytest e2e --driver Remote --capability browserName firefox --selenium-host selenium --selenium-port 4444 --junitxml=browser-results.xml
 
       - name: Upload artifacts
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: ${{ failure() }}
         with:
-          name: log-with${{ inputs.python-version.previous-version && '' || 'out' }}-update.out
-          path: nohup.out
+          name: browser-source-logs
+          path: |
+            nohup.out
+            browser-results.xml
           retention-days: 2

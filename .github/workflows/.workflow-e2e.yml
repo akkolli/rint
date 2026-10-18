@@ -52,22 +52,17 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Create and source virtual environment
-        run: | 
-          python3 -m venv .venv 
-          . .venv/bin/activate
-
       - name: Create Postgis extension
         run: |
           python3 -m pip install psycopg2
           python db/install_postgis_for_ci_e2e_package_tests.py
 
       - name: Install previous version of FitTrackee from PyPI
-        if: inputs.python-version.previous-version
-        run: python3 -m pip install fittrackee
+        if: inputs.previous-version
+        run: python3 -m pip install fittrackee==1.3.5
 
       - name: Run migrations
-        if: inputs.python-version.previous-version
+        if: inputs.previous-version
         run: ftcli db upgrade
 
       - name: Download all the dists
@@ -83,7 +78,7 @@ jobs:
         run: ftcli db upgrade
 
       - name: Install pytest and selenium
-        run: python3 -m pip install pytest==8.2.0 pytest-selenium==4.1.0 selenium==4.20.0 pytest-html==4.1.1
+        run: python3 -m pip install pytest==9.1.1 pytest-selenium==4.1.0 selenium==4.48.0 pytest-html==4.2.0
 
       - name: Start application and run tests with Selenium
         run: |
@@ -91,12 +86,14 @@ jobs:
           export TEST_APP_URL=http://$(hostname --ip-address):5000
           sleep 5
           nohup dramatiq fittrackee.tasks:broker --processes=1 >> nohup.out 2>&1 &
-          pytest e2e --driver Remote --capability browserName firefox --selenium-host selenium --selenium-port 4444 --maxfail=1
+          pytest e2e --driver Remote --capability browserName firefox --selenium-host selenium --selenium-port 4444 --junitxml=browser-results.xml
 
       - name: Upload artifacts
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: ${{ failure() }}
         with:
-          name: log-with${{ inputs.python-version.previous-version && '' || 'out' }}-update.out
-          path: nohup.out
+          name: log-with${{ inputs.previous-version && '' || 'out' }}-update.out
+          path: |
+            nohup.out
+            browser-results.xml
           retention-days: 2

@@ -1,17 +1,12 @@
-from selenium.webdriver.common.by import By
-
-from .utils import TEST_URL
+from .utils import TEST_URL, visible
 
 
 class TestIndex:
-    def test_title_contains_fittrackee(self, selenium):
+    def test_rint_brand_and_visitor_navigation(self, selenium):
         selenium.get(TEST_URL)
-        assert "FitTrackee" in selenium.title
-
-    def test_navbar_contains_all_links(self, selenium):
-        selenium.get(TEST_URL)
-
-        nav = selenium.find_element(By.ID, "nav").text
-        assert "FitTrackee" in nav
-        assert "Login" in nav
-        assert "Register" in nav
+        assert visible(selenium, '#nav a[aria-label="Rint home"]')
+        assert "Rint" in selenium.title
+        assert visible(selenium, '#nav a[href="/login"]').text == "Sign in"
+        assert (
+            visible(selenium, '#nav a[href="/register"]').text == "Join Rint"
+        )

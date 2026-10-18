@@ -5,6 +5,7 @@ from .utils import (
     random_string,
     register,
     register_valid_user_and_logout,
+    visible,
 )
 
 URL = f"{TEST_URL}/register"
@@ -13,19 +14,18 @@ URL = f"{TEST_URL}/register"
 class TestRegistration:
     def test_it_displays_registration_form(self, selenium):
         selenium.get(URL)
-        selenium.implicitly_wait(1)
 
-        user_form = selenium.find_element(By.ID, "user-form")
+        user_form = visible(selenium, "#user-form")
         inputs = user_form.find_elements(By.TAG_NAME, "input")
-        assert len(inputs) == 5
+        assert len(inputs) == 4
         assert inputs[0].get_attribute("id") == "username"
         assert inputs[0].get_attribute("type") == "text"
         assert inputs[1].get_attribute("id") == "email"
         assert inputs[1].get_attribute("type") == "email"
         assert inputs[2].get_attribute("id") == "password"
         assert inputs[2].get_attribute("type") == "password"
-        assert inputs[4].get_attribute("id") == "accepted_policy"
-        assert inputs[4].get_attribute("type") == "checkbox"
+        assert inputs[3].get_attribute("id") == "accepted_policy"
+        assert inputs[3].get_attribute("type") == "checkbox"
 
         form_infos = user_form.find_elements(By.CLASS_NAME, "form-info")
         assert len(form_infos) == 3
@@ -55,7 +55,7 @@ class TestRegistration:
 
         register(selenium, user)
 
-        message = selenium.find_element(By.CLASS_NAME, "success-message").text
+        message = visible(selenium, ".success-message").text
         assert (
             "A link to activate your account has been "
             "emailed to the address provided."
@@ -73,8 +73,8 @@ class TestRegistration:
 
         assert selenium.current_url == URL
         nav = selenium.find_element(By.ID, "nav").text
-        assert "Register" in nav
-        assert "Login" in nav
+        assert "Join Rint" in nav
+        assert "Sign in" in nav
 
     def test_user_can_not_register_if_username_is_already_taken(
         self, selenium
@@ -85,11 +85,7 @@ class TestRegistration:
         register(selenium, user)
 
         assert selenium.current_url == URL
-        errors = (
-            selenium.find_element(By.ID, "user-form")
-            .find_element(By.CLASS_NAME, "error-message")
-            .text
-        )
+        errors = visible(selenium, "#user-form .error-message").text
         assert "Sorry, that username is already taken." in errors
 
     def test_user_does_not_return_error_if_email_is_already_taken(
@@ -100,8 +96,8 @@ class TestRegistration:
 
         register(selenium, user)
 
+        message = visible(selenium, ".success-message").text
         assert selenium.current_url == f"{TEST_URL}/login"
-        message = selenium.find_element(By.CLASS_NAME, "success-message").text
         assert (
             "A link to activate your account has been "
             "emailed to the address provided."
