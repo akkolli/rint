@@ -1,0 +1,24 @@
+{
+  "boxes": {
+    ".activity-hero": {
+      "height": 116.75,
+      "top": 63
+    },
+    ".analysis-route": {
+      "height": 204,
+      "top": 304.75
+    },
+    ".stream-chart": {
+      "height": 220,
+      "top": 688.25
+    },
+    ".summary-grid": {
+      "height": 63,
+      "top": 189.75
+    }
+  },
+  "height": 844,
+  "overflow": false,
+  "scrollY": 0,
+  "width": 390
+}

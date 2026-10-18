@@ -1,0 +1,99 @@
+name: Rint
+options:
+  bundleIdPrefix: org.rint
+  deploymentTarget:
+    iOS: "26.0"
+    watchOS: "10.0"
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    CODE_SIGN_STYLE: Automatic
+    GENERATE_INFOPLIST_FILE: YES
+    MARKETING_VERSION: "1.0.0"
+    CURRENT_PROJECT_VERSION: "3"
+    INFOPLIST_KEY_NSHealthShareUsageDescription: "Read your workouts, routes and sensors to bring your complete history into Rint."
+    INFOPLIST_KEY_NSHealthUpdateUsageDescription: "Save workouts you record with Rint to Apple Health."
+    INFOPLIST_KEY_NSLocationWhenInUseUsageDescription: "Record the route and distance of your outdoor workout."
+    INFOPLIST_KEY_NSLocationAlwaysAndWhenInUseUsageDescription: "Keep recording your workout route while the screen is locked."
+    INFOPLIST_KEY_CFBundleDisplayName: Rint
+targets:
+  Rint:
+    type: application
+    platform: iOS
+    sources: [Shared, iOS]
+    settings:
+      base:
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+    entitlements:
+      path: iOS/Rint.entitlements
+      properties:
+        com.apple.developer.healthkit: true
+        com.apple.developer.healthkit.background-delivery: true
+    info:
+      path: iOS/Info.plist
+      properties:
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        RintDefaultServerURL: $(RINT_DEFAULT_SERVER_URL)
+        UIBackgroundModes: [location, processing]
+        BGTaskSchedulerPermittedIdentifiers: [org.rint.sync]
+        UILaunchScreen: {}
+        CFBundleURLTypes:
+          - CFBundleURLName: org.rint.navigation
+            CFBundleURLSchemes: [rint]
+        UIFileSharingEnabled: true
+        LSSupportsOpeningDocumentsInPlace: true
+        NSAppTransportSecurity:
+          NSAllowsLocalNetworking: true
+          NSExceptionDomains:
+            localhost:
+              NSExceptionAllowsInsecureHTTPLoads: true
+    dependencies:
+      - target: RintWatch
+        embed: true
+  RintTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources: [Tests]
+    dependencies:
+      - target: Rint
+  RintWatch:
+    type: application
+    platform: watchOS
+    sources: [Shared, Watch]
+    settings:
+      base:
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        PRODUCT_BUNDLE_IDENTIFIER: org.rint.Rint.watchkitapp
+        INFOPLIST_KEY_WKCompanionAppBundleIdentifier: org.rint.Rint
+        INFOPLIST_KEY_WKApplication: YES
+        INFOPLIST_KEY_WKRunsIndependentlyOfCompanionApp: YES
+    entitlements:
+      path: Watch/Rint.entitlements
+      properties:
+        com.apple.developer.healthkit: true
+    info:
+      path: Watch/Info.plist
+      properties:
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        WKBackgroundModes: [workout-processing]
+schemes:
+  Rint:
+    build:
+      targets:
+        Rint: all
+    test:
+      targets: [RintTests]
+  RintWatch:
+    build:
+      targets:
+        RintWatch: all
+  RintSimulatorFixtures:
+    build:
+      targets:
+        Rint: all
+    test:
+      targets: [RintTests]
+      environmentVariables:
+        RINT_HEALTH_FIXTURE: "1"

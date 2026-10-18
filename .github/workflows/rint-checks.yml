@@ -1,0 +1,41 @@
+name: Rint source and web checks
+
+on:
+  push:
+    paths:
+      - 'fittrackee_client/**'
+      - 'scripts/rint-release-check.py'
+      - 'scripts/tests/**'
+      - '.gitignore'
+      - '.github/workflows/rint-checks.yml'
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: 24.x
+          cache: npm
+          cache-dependency-path: fittrackee_client/package-lock.json
+      - name: Check source hygiene
+        run: |
+          python3 -m unittest discover -s scripts/tests
+          python3 scripts/rint-release-check.py
+      - name: Install web dependencies
+        working-directory: fittrackee_client
+        run: npm ci --ignore-scripts
+      - name: Lint, test and build
+        working-directory: fittrackee_client
+        run: |
+          npm run lint-check
+          npm run test:unit -- --run
+          npm run build

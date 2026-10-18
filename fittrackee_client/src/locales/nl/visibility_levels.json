@@ -1,0 +1,20 @@
+{
+  "ANALYSIS_VISIBILITY": "Zichtbaarheid Analyse",
+  "CALORIES_VISIBILITY": "Zichtbaarheid calorieën",
+  "COMMENT_LEVELS": {
+    "followers_only": "Enkel volgers",
+    "private": "Privé (enkel vermelde gebruikers)",
+    "public": "Publiek (iedereen)"
+  },
+  "HR_VISIBILITY": "Hartslag zichtbaarheid",
+  "LEVELS": {
+    "followers_only": "Enkel volgers",
+    "private": "Privé (enkel ikzelf)",
+    "public": "Publiek (iedereen)"
+  },
+  "MAP_VISIBILITY": "Zichtbaarheid kaart",
+  "MEDIA_VISIBILITY": "Zichtbaarheid van media",
+  "VISIBILITY": "Zichtbaarheid",
+  "WORKOUTS_VISIBILITY": "Zichtbaarheid traininggerelateerde data",
+  "WORKOUT_VISIBILITY": "Zichtbaarheid training"
+}

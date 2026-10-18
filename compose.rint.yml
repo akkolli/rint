@@ -1,0 +1,87 @@
+# docker compose --env-file .env.rint -f compose.rint.yml up --build -d
+services:
+  db:
+    image: postgis/postgis:17-3.5
+    environment:
+      POSTGRES_USER: rint
+      POSTGRES_DB: rint
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Generate .env.rint first}
+    volumes: [database:/var/lib/postgresql/data]
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U rint -d rint"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    networks: [internal]
+    restart: unless-stopped
+  redis:
+    image: redis:8-alpine
+    command: [redis-server, --appendonly, "yes"]
+    volumes: [redis:/data]
+    healthcheck:
+      test: [CMD, redis-cli, ping]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    networks: [internal]
+    restart: unless-stopped
+  web:
+    image: rint:local
+    build:
+      context: .
+      args:
+        RINT_SOURCE_URL: ${RINT_SOURCE_URL:-}
+    environment: &app_environment
+      APP_SETTINGS: fittrackee.config.ProductionConfig
+      APP_SECRET_KEY: ${APP_SECRET_KEY:?Generate .env.rint first}
+      DATABASE_URL: postgresql://rint:${POSTGRES_PASSWORD}@db:5432/rint
+      REDIS_URL: redis://redis:6379/0
+      UI_URL: ${UI_URL:-http://localhost:5080}
+      UPLOAD_FOLDER: /usr/src/app/uploads
+      STATICMAP_CACHE_DIR: /usr/src/app/.staticmap_cache
+      GUNICORN_LOG: '-'
+      APP_TIMEOUT: 180
+      API_RATE_LIMITS: 300 per 5 minutes
+      EMAIL_URL: ${EMAIL_URL:-}
+      SENDER_EMAIL: ${SENDER_EMAIL:-}
+    command: [sh, docker-entrypoint.sh]
+    volumes: &app_volumes
+      - uploads:/usr/src/app/uploads
+      - maps:/usr/src/app/.staticmap_cache
+    post_start:
+      - command: chown -R fittrackee:fittrackee /usr/src/app/uploads /usr/src/app/.staticmap_cache
+        user: root
+    ports: ["127.0.0.1:${HOST_APP_PORT:-5080}:5000"]
+    depends_on:
+      db: {condition: service_healthy}
+      redis: {condition: service_healthy}
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:5000/api/check-db')"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 60s
+    networks: [internal, external]
+    restart: unless-stopped
+  worker:
+    image: rint:local
+    build:
+      context: .
+      args:
+        RINT_SOURCE_URL: ${RINT_SOURCE_URL:-}
+    environment: *app_environment
+    volumes: *app_volumes
+    command: [dramatiq, 'fittrackee.tasks:broker', --processes=2]
+    depends_on:
+      web: {condition: service_healthy}
+    networks: [internal, external]
+    restart: unless-stopped
+volumes:
+  database:
+  redis:
+  uploads:
+  maps:
+networks:
+  internal:
+    internal: true
+  external:
