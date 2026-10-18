@@ -5,6 +5,9 @@ on:
     paths: [
       'fittrackee/**',
       'e2e/**',
+      'db/**',
+      'scripts/tests/**',
+      'scripts/rint-test-footprint.py',
       'rint_core/**',
       'tests_rint/**',
       '.github/workflows/**',
