@@ -12,6 +12,7 @@ import type {
   IReportsActions,
 } from '@/store/modules/reports/types'
 import type { IRootState } from '@/store/modules/root/types'
+import { handleApiRequest } from '@/store/request'
 import type { TPaginationPayload } from '@/types/api'
 import type {
   IAppealPayload,
@@ -41,45 +42,35 @@ export const actions: ActionTree<IReportsState, IRootState> & IReportsActions =
         REPORTS_STORE.MUTATIONS[`SET_${reportPayload.loader}_LOADING`],
         true
       )
-      authApi
-        .get(`reports/${reportPayload.reportId}`)
-        .then((res) => {
-          if (res.data.status === 'success') {
-            context.commit(REPORTS_STORE.MUTATIONS.SET_REPORT, res.data.report)
-          } else {
-            handleError(context, null)
-          }
-        })
-        .catch((error) => handleError(context, error))
-        .finally(() =>
-          context.commit(
-            REPORTS_STORE.MUTATIONS[`SET_${reportPayload.loader}_LOADING`],
-            false
-          )
+      handleApiRequest(
+        context,
+        authApi.get(`reports/${reportPayload.reportId}`),
+        (data) => {
+          context.commit(REPORTS_STORE.MUTATIONS.SET_REPORT, data.report)
+        }
+      ).finally(() =>
+        context.commit(
+          REPORTS_STORE.MUTATIONS[`SET_${reportPayload.loader}_LOADING`],
+          false
         )
+      )
     },
     [REPORTS_STORE.ACTIONS.GET_REPORTS](
       context: ActionContext<IReportsState, IRootState>,
       payload: TPaginationPayload
     ): void {
       context.commit(ROOT_STORE.MUTATIONS.EMPTY_ERROR_MESSAGES)
-      authApi
-        .get('reports', { params: payload })
-        .then((res) => {
-          if (res.data.status === 'success') {
-            context.commit(
-              REPORTS_STORE.MUTATIONS.SET_REPORTS,
-              res.data.reports
-            )
-            context.commit(
-              REPORTS_STORE.MUTATIONS.SET_REPORTS_PAGINATION,
-              res.data.pagination
-            )
-          } else {
-            handleError(context, null)
-          }
-        })
-        .catch((error) => handleError(context, error))
+      handleApiRequest(
+        context,
+        authApi.get('reports', { params: payload }),
+        (data) => {
+          context.commit(REPORTS_STORE.MUTATIONS.SET_REPORTS, data.reports)
+          context.commit(
+            REPORTS_STORE.MUTATIONS.SET_REPORTS_PAGINATION,
+            data.pagination
+          )
+        }
+      )
     },
     [REPORTS_STORE.ACTIONS.PROCESS_APPEAL](
       context: ActionContext<IReportsState, IRootState>,
@@ -87,21 +78,16 @@ export const actions: ActionTree<IReportsState, IRootState> & IReportsActions =
     ): void {
       context.commit(ROOT_STORE.MUTATIONS.EMPTY_ERROR_MESSAGES)
       const { appealId, reportId, ...data } = payload
-      authApi
-        .patch(`appeals/${appealId}`, data)
-        .then((res) => {
-          if (res.data.status === 'success') {
-            context.dispatch(REPORTS_STORE.ACTIONS.GET_REPORT, {
-              reportId: reportId,
-              loader: 'REPORT_UPDATE',
-            })
-          } else {
-            handleError(context, null)
-          }
-        })
-        .catch((error) => {
-          handleError(context, error)
-        })
+      handleApiRequest(
+        context,
+        authApi.patch(`appeals/${appealId}`, data),
+        () => {
+          context.dispatch(REPORTS_STORE.ACTIONS.GET_REPORT, {
+            reportId: reportId,
+            loader: 'REPORT_UPDATE',
+          })
+        }
+      )
     },
     [REPORTS_STORE.ACTIONS.SUBMIT_ADMIN_ACTION](
       context: ActionContext<IReportsState, IRootState>,
@@ -111,25 +97,16 @@ export const actions: ActionTree<IReportsState, IRootState> & IReportsActions =
       context.commit(USERS_STORE.MUTATIONS.UPDATE_IS_SUCCESS, false)
       context.commit(REPORTS_STORE.MUTATIONS.SET_REPORT_UPDATE_LOADING, true)
       const { report_id, ...data } = payload
-      authApi
-        .post(`reports/${report_id}/actions`, data)
-        .then((res) => {
-          if (res.data.status === 'success') {
-            context.commit(REPORTS_STORE.MUTATIONS.SET_REPORT, res.data.report)
-            context.commit(USERS_STORE.MUTATIONS.UPDATE_IS_SUCCESS, true)
-          } else {
-            handleError(context, null)
-          }
-        })
-        .catch((error) => {
-          handleError(context, error)
-        })
-        .finally(() =>
-          context.commit(
-            REPORTS_STORE.MUTATIONS.SET_REPORT_UPDATE_LOADING,
-            false
-          )
-        )
+      handleApiRequest(
+        context,
+        authApi.post(`reports/${report_id}/actions`, data),
+        (data) => {
+          context.commit(REPORTS_STORE.MUTATIONS.SET_REPORT, data.report)
+          context.commit(USERS_STORE.MUTATIONS.UPDATE_IS_SUCCESS, true)
+        }
+      ).finally(() =>
+        context.commit(REPORTS_STORE.MUTATIONS.SET_REPORT_UPDATE_LOADING, false)
+      )
     },
     [REPORTS_STORE.ACTIONS.SUBMIT_REPORT](
       context: ActionContext<IReportsState, IRootState>,
@@ -206,18 +183,11 @@ export const actions: ActionTree<IReportsState, IRootState> & IReportsActions =
       context: ActionContext<IReportsState, IRootState>
     ): void {
       context.commit(ROOT_STORE.MUTATIONS.EMPTY_ERROR_MESSAGES)
-      authApi
-        .get('reports/unresolved')
-        .then((res) => {
-          if (res.data.status === 'success') {
-            context.commit(
-              REPORTS_STORE.MUTATIONS.SET_UNRESOLVED_REPORTS_STATUS,
-              res.data.unresolved
-            )
-          } else {
-            handleError(context, null)
-          }
-        })
-        .catch((error) => handleError(context, error))
+      handleApiRequest(context, authApi.get('reports/unresolved'), (data) => {
+        context.commit(
+          REPORTS_STORE.MUTATIONS.SET_UNRESOLVED_REPORTS_STATUS,
+          data.unresolved
+        )
+      })
     },
   }

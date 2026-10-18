@@ -5,6 +5,7 @@ import router from '@/router'
 import { OAUTH2_STORE, ROOT_STORE } from '@/store/constants'
 import type { IOAuth2Actions, IOAuth2State } from '@/store/modules/oauth2/types'
 import type { IRootState } from '@/store/modules/root/types'
+import { handleApiRequest } from '@/store/request'
 import type {
   IOauth2ClientsPayload,
   IOAuth2ClientPayload,
@@ -18,16 +19,9 @@ const get_client = (
   url: string
 ) => {
   context.commit(ROOT_STORE.MUTATIONS.EMPTY_ERROR_MESSAGES)
-  authApi
-    .get(url)
-    .then((res) => {
-      if (res.data.status === 'success') {
-        context.commit(OAUTH2_STORE.MUTATIONS.SET_CLIENT, res.data.data.client)
-      } else {
-        handleError(context, null)
-      }
-    })
-    .catch((error) => handleError(context, error))
+  handleApiRequest(context, authApi.get(url), (data) => {
+    context.commit(OAUTH2_STORE.MUTATIONS.SET_CLIENT, data.data.client)
+  })
 }
 
 export const actions: ActionTree<IOAuth2State, IRootState> & IOAuth2Actions = {
@@ -78,20 +72,15 @@ export const actions: ActionTree<IOAuth2State, IRootState> & IOAuth2Actions = {
     payload: IOAuth2ClientPayload
   ): void {
     context.commit(ROOT_STORE.MUTATIONS.EMPTY_ERROR_MESSAGES)
-    authApi
-      .post('oauth/apps', payload)
-      .then((res) => {
-        if (res.data.status === 'created') {
-          context.commit(
-            OAUTH2_STORE.MUTATIONS.SET_CLIENT,
-            res.data.data.client
-          )
-          router.push(`/profile/apps/${res.data.data.client.id}/created`)
-        } else {
-          handleError(context, null)
-        }
-      })
-      .catch((error) => handleError(context, error))
+    handleApiRequest(
+      context,
+      authApi.post('oauth/apps', payload),
+      (data) => {
+        context.commit(OAUTH2_STORE.MUTATIONS.SET_CLIENT, data.data.client)
+        router.push(`/profile/apps/${data.data.client.id}/created`)
+      },
+      'created'
+    )
   },
   [OAUTH2_STORE.ACTIONS.DELETE_CLIENT](
     context: ActionContext<IOAuth2State, IRootState>,
@@ -128,25 +117,19 @@ export const actions: ActionTree<IOAuth2State, IRootState> & IOAuth2Actions = {
     payload: IOauth2ClientsPayload
   ): void {
     context.commit(ROOT_STORE.MUTATIONS.EMPTY_ERROR_MESSAGES)
-    authApi
-      .get('oauth/apps', {
+    handleApiRequest(
+      context,
+      authApi.get('oauth/apps', {
         params: payload,
-      })
-      .then((res) => {
-        if (res.data.status === 'success') {
-          context.commit(
-            OAUTH2_STORE.MUTATIONS.SET_CLIENTS,
-            res.data.data.clients
-          )
-          context.commit(
-            OAUTH2_STORE.MUTATIONS.SET_CLIENTS_PAGINATION,
-            res.data.pagination
-          )
-        } else {
-          handleError(context, null)
-        }
-      })
-      .catch((error) => handleError(context, error))
+      }),
+      (data) => {
+        context.commit(OAUTH2_STORE.MUTATIONS.SET_CLIENTS, data.data.clients)
+        context.commit(
+          OAUTH2_STORE.MUTATIONS.SET_CLIENTS_PAGINATION,
+          data.pagination
+        )
+      }
+    )
   },
   [OAUTH2_STORE.ACTIONS.REVOKE_ALL_TOKENS](
     context: ActionContext<IOAuth2State, IRootState>,
@@ -154,15 +137,12 @@ export const actions: ActionTree<IOAuth2State, IRootState> & IOAuth2Actions = {
   ): void {
     context.commit(ROOT_STORE.MUTATIONS.EMPTY_ERROR_MESSAGES)
     context.commit(OAUTH2_STORE.MUTATIONS.SET_REVOCATION_SUCCESSFUL, false)
-    authApi
-      .post(`oauth/apps/${id}/revoke`)
-      .then((res) => {
-        if (res.data.status === 'success') {
-          context.commit(OAUTH2_STORE.MUTATIONS.SET_REVOCATION_SUCCESSFUL, true)
-        } else {
-          handleError(context, null)
-        }
-      })
-      .catch((error) => handleError(context, error))
+    handleApiRequest(
+      context,
+      authApi.post(`oauth/apps/${id}/revoke`),
+      () => {
+        context.commit(OAUTH2_STORE.MUTATIONS.SET_REVOCATION_SUCCESSFUL, true)
+      }
+    )
   },
 }

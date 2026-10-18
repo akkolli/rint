@@ -38,7 +38,8 @@ class TestMediaGet(ApiTestCaseMixin, MediaMixin):
             response = client.get(
                 self.route.format(filename=media.file_name),
                 headers={
-                    "Authorization": f"Bearer {user_1.encode_auth_token(user_1.id)}"
+                    "Authorization": "Bearer "
+                    + user_1.encode_auth_token(user_1.id)
                 },
             )
 
@@ -59,7 +60,8 @@ class TestMediaGet(ApiTestCaseMixin, MediaMixin):
             response = client.get(
                 self.route.format(filename=media.thumbnail),
                 headers={
-                    "Authorization": f"Bearer {user_1.encode_auth_token(user_1.id)}"
+                    "Authorization": "Bearer "
+                    + user_1.encode_auth_token(user_1.id)
                 },
             )
 
@@ -208,18 +210,6 @@ class TestMediaApiPost(ApiTestCaseMixin):
 
         data = json.loads(response.data.decode())
         assert data == media.serialize()
-
-    def test_expected_scope_is_media_write(
-        self, app: "Flask", user_1: "User"
-    ) -> None:
-        self.assert_response_scope(
-            app=app,
-            user=user_1,
-            client_method="post",
-            endpoint=self.route,
-            invalid_scope="profile:read",
-            expected_endpoint_scope="media:write",
-        )
 
 
 class TestMediaApiPatch(ApiTestCaseMixin, MediaMixin):
@@ -379,18 +369,6 @@ class TestMediaApiPatch(ApiTestCaseMixin, MediaMixin):
             == new_description[:MEDIA_DESCRIPTION_MAX_CHARACTERS]
         )
 
-    def test_expected_scope_is_media_write(
-        self, app: "Flask", user_1: "User"
-    ) -> None:
-        self.assert_response_scope(
-            app=app,
-            user=user_1,
-            client_method="patch",
-            endpoint=self.route.format(media_short_id=self.random_short_id()),
-            invalid_scope="profile:read",
-            expected_endpoint_scope="media:write",
-        )
-
 
 class TestMediaApiDelete(ApiTestCaseMixin, MediaMixin):
     route = "/api/media/{media_short_id}"
@@ -475,16 +453,4 @@ class TestMediaApiDelete(ApiTestCaseMixin, MediaMixin):
         assert Media.query.filter_by(uuid=media_user_1_uuid).first() is None
         assert (
             Media.query.filter_by(uuid=media_user_2.uuid).first() is not None
-        )
-
-    def test_expected_scope_is_media_write(
-        self, app: "Flask", user_1: "User"
-    ) -> None:
-        self.assert_response_scope(
-            app=app,
-            user=user_1,
-            client_method="delete",
-            endpoint=self.route.format(media_short_id=self.random_short_id()),
-            invalid_scope="profile:read",
-            expected_endpoint_scope="media:write",
         )

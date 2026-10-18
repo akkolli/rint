@@ -8,6 +8,7 @@ from flask import Flask
 
 from fittrackee import db
 from fittrackee.tests.comments.mixins import CommentMixin
+from fittrackee.tests.custom_asserts import assert_response
 from fittrackee.users.models import FollowRequest, User
 from fittrackee.visibility_levels import VisibilityLevel
 from fittrackee.workouts.models import Sport, Workout, WorkoutSegment
@@ -89,9 +90,7 @@ class TestGetWorkoutAsWorkoutOwner(GetWorkoutTestCase):
             headers=dict(Authorization=f"Bearer {auth_token}"),
         )
 
-        assert response.status_code == 200
-        data = json.loads(response.data.decode())
-        assert "success" in data["status"]
+        data = assert_response(response, 200, contains={"status": "success"})
         assert len(data["data"]["workouts"]) == 1
         assert data["data"]["workouts"][0] == jsonify_dict(
             workout_cycling_user_1.serialize(user=user_1, light=False)
@@ -115,9 +114,7 @@ class TestGetWorkoutAsWorkoutOwner(GetWorkoutTestCase):
             headers=dict(Authorization=f"Bearer {auth_token}"),
         )
 
-        assert response.status_code == 200
-        data = json.loads(response.data.decode())
-        assert "success" in data["status"]
+        data = assert_response(response, 200, contains={"status": "success"})
         assert len(data["data"]["workouts"]) == 1
         assert data["data"]["workouts"][0] == jsonify_dict(
             workout_cycling_user_1.serialize(user=user_1, light=False)
@@ -207,9 +204,7 @@ class TestGetWorkoutAsFollower(CommentMixin, GetWorkoutTestCase):
             headers=dict(Authorization=f"Bearer {auth_token}"),
         )
 
-        assert response.status_code == 200
-        data = json.loads(response.data.decode())
-        assert "success" in data["status"]
+        data = assert_response(response, 200, contains={"status": "success"})
         assert len(data["data"]["workouts"]) == 1
         assert data["data"]["workouts"][0] == jsonify_dict(
             workout_cycling_user_2.serialize(user=user_1)
@@ -244,9 +239,7 @@ class TestGetWorkoutAsFollower(CommentMixin, GetWorkoutTestCase):
             headers=dict(Authorization=f"Bearer {auth_token}"),
         )
 
-        assert response.status_code == 200
-        data = json.loads(response.data.decode())
-        assert "success" in data["status"]
+        data = assert_response(response, 200, contains={"status": "success"})
         assert len(data["data"]["workouts"]) == 1
         assert data["data"]["workouts"][0]["user"] == jsonify_dict(
             user_2.serialize()
@@ -356,9 +349,7 @@ class TestGetWorkoutAsUser(CommentMixin, GetWorkoutTestCase):
             headers=dict(Authorization=f"Bearer {auth_token}"),
         )
 
-        assert response.status_code == 200
-        data = json.loads(response.data.decode())
-        assert "success" in data["status"]
+        data = assert_response(response, 200, contains={"status": "success"})
         assert len(data["data"]["workouts"]) == 1
         assert data["data"]["workouts"][0] == jsonify_dict(
             workout_cycling_user_2.serialize(user=user_1)
@@ -434,9 +425,7 @@ class TestGetWorkoutAsUser(CommentMixin, GetWorkoutTestCase):
             headers=dict(Authorization=f"Bearer {auth_token}"),
         )
 
-        assert response.status_code == 200
-        data = json.loads(response.data.decode())
-        assert "success" in data["status"]
+        data = assert_response(response, 200, contains={"status": "success"})
         assert len(data["data"]["workouts"]) == 1
         assert data["data"]["workouts"][0]["user"] == jsonify_dict(
             user_2.serialize()
@@ -551,9 +540,7 @@ class TestGetWorkoutAsUnauthenticatedUser(GetWorkoutTestCase):
             self.route.format(workout_uuid=workout_cycling_user_1.short_id),
         )
 
-        assert response.status_code == 200
-        data = json.loads(response.data.decode())
-        assert "success" in data["status"]
+        data = assert_response(response, 200, contains={"status": "success"})
         assert len(data["data"]["workouts"]) == 1
         assert data["data"]["workouts"][0]["user"] == jsonify_dict(
             user_1.serialize()
@@ -615,9 +602,7 @@ class TestGetWorkoutGeoJsonAsWorkoutOwner(GetWorkoutGeoJSONTestCase):
             headers=dict(Authorization=f"Bearer {auth_token}"),
         )
 
-        assert response.status_code == 404
-        data = json.loads(response.data.decode())
-        assert "not found" in data["status"]
+        data = assert_response(response, 404, contains={"status": "not found"})
         assert (
             f"no file for this workout (id: {workout_cycling_user_1.short_id})"
         ) in data["message"]
@@ -668,9 +653,7 @@ class TestGetWorkoutGeoJsonAsWorkoutOwner(GetWorkoutGeoJSONTestCase):
             headers=dict(Authorization=f"Bearer {auth_token}"),
         )
 
-        assert response.status_code == 200
-        data = json.loads(response.data.decode())
-        assert "success" in data["status"]
+        data = assert_response(response, 200, contains={"status": "success"})
 
         assert data["data"][
             "geojson"
@@ -768,9 +751,7 @@ class TestGetWorkoutGeoJsonAsFollower(
             headers=dict(Authorization=f"Bearer {auth_token}"),
         )
 
-        assert response.status_code == 200
-        data = json.loads(response.data.decode())
-        assert "success" in data["status"]
+        data = assert_response(response, 200, contains={"status": "success"})
         assert data["data"][
             "geojson"
         ] == self.get_multilinestring_geojson_from_geom(
@@ -823,9 +804,7 @@ class TestGetWorkoutGeoJsonAsUser(
             headers=dict(Authorization=f"Bearer {auth_token}"),
         )
 
-        assert response.status_code == 404
-        data = json.loads(response.data.decode())
-        assert "not found" in data["status"]
+        data = assert_response(response, 404, contains={"status": "not found"})
         assert f"workout not found (id: {random_short_id})" in data["message"]
         assert data["data"]["geojson"] is None
 
@@ -888,9 +867,7 @@ class TestGetWorkoutGeoJsonAsUser(
             headers=dict(Authorization=f"Bearer {auth_token}"),
         )
 
-        assert response.status_code == 200
-        data = json.loads(response.data.decode())
-        assert "success" in data["status"]
+        data = assert_response(response, 200, contains={"status": "success"})
         assert data["data"][
             "geojson"
         ] == self.get_multilinestring_geojson_from_geom(
@@ -992,9 +969,7 @@ class TestGetWorkoutGeoJsonAsUnauthenticatedUser(
             ),
         )
 
-        assert response.status_code == 200
-        data = json.loads(response.data.decode())
-        assert "success" in data["status"]
+        data = assert_response(response, 200, contains={"status": "success"})
         assert data["data"][
             "geojson"
         ] == self.get_multilinestring_geojson_from_geom(
@@ -1027,9 +1002,7 @@ class TestGetWorkoutSegmentGeoJsonAsWorkoutOwner(
             headers=dict(Authorization=f"Bearer {auth_token}"),
         )
 
-        assert response.status_code == 404
-        data = json.loads(response.data.decode())
-        assert "not found" in data["status"]
+        data = assert_response(response, 404, contains={"status": "not found"})
         assert (
             f"no file for this workout (id: {workout_cycling_user_1.short_id})"
         ) in data["message"]
@@ -1081,9 +1054,7 @@ class TestGetWorkoutSegmentGeoJsonAsWorkoutOwner(
             headers=dict(Authorization=f"Bearer {auth_token}"),
         )
 
-        assert response.status_code == 200
-        data = json.loads(response.data.decode())
-        assert "success" in data["status"]
+        data = assert_response(response, 200, contains={"status": "success"})
 
         assert data["data"]["geojson"] == self.get_geojson_from_geom(
             workout_cycling_user_1_segment_0_with_coordinates.geom
@@ -1185,9 +1156,7 @@ class TestGetWorkoutSegmentGeoJsonAsFollower(
             headers=dict(Authorization=f"Bearer {auth_token}"),
         )
 
-        assert response.status_code == 200
-        data = json.loads(response.data.decode())
-        assert "success" in data["status"]
+        data = assert_response(response, 200, contains={"status": "success"})
         assert data["data"]["geojson"] == self.get_geojson_from_geom(
             workout_cycling_user_1_segment_0_with_coordinates.geom
         )
@@ -1240,9 +1209,7 @@ class TestGetWorkoutSegmentGeoJsonAsUser(
             headers=dict(Authorization=f"Bearer {auth_token}"),
         )
 
-        assert response.status_code == 404
-        data = json.loads(response.data.decode())
-        assert "not found" in data["status"]
+        data = assert_response(response, 404, contains={"status": "not found"})
         assert f"workout not found (id: {random_short_id})" in data["message"]
         assert data["data"]["geojson"] is None
 
@@ -1308,9 +1275,7 @@ class TestGetWorkoutSegmentGeoJsonAsUser(
             headers=dict(Authorization=f"Bearer {auth_token}"),
         )
 
-        assert response.status_code == 200
-        data = json.loads(response.data.decode())
-        assert "success" in data["status"]
+        data = assert_response(response, 200, contains={"status": "success"})
         assert data["data"]["geojson"] == self.get_geojson_from_geom(
             workout_cycling_user_1_segment_0_with_coordinates.geom
         )
@@ -1415,9 +1380,7 @@ class TestGetWorkoutSegmentGeoJsonAsUnauthenticatedUser(
             ),
         )
 
-        assert response.status_code == 200
-        data = json.loads(response.data.decode())
-        assert "success" in data["status"]
+        data = assert_response(response, 200, contains={"status": "success"})
         assert data["data"]["geojson"] == self.get_geojson_from_geom(
             workout_cycling_user_1_segment_0_with_coordinates.geom
         )
@@ -1473,9 +1436,7 @@ class TestGetWorkoutChartDataAsWorkoutOwner(GetWorkoutChartDataTestCase):
             headers=dict(Authorization=f"Bearer {auth_token}"),
         )
 
-        assert response.status_code == 200
-        data = json.loads(response.data.decode())
-        assert "success" in data["status"]
+        data = assert_response(response, 200, contains={"status": "success"})
         assert (
             data["data"]["chart_data"]
             == workout_cycling_user_1_segment_0_chart_data
@@ -1573,9 +1534,7 @@ class TestGetWorkoutChartDataAsFollower(
             headers=dict(Authorization=f"Bearer {auth_token}"),
         )
 
-        assert response.status_code == 200
-        data = json.loads(response.data.decode())
-        assert "success" in data["status"]
+        data = assert_response(response, 200, contains={"status": "success"})
         assert (
             data["data"]["chart_data"]
             == workout_cycling_user_1_segment_0_chart_data_wo_hr
@@ -1612,9 +1571,7 @@ class TestGetWorkoutChartDataAsFollower(
             headers=dict(Authorization=f"Bearer {auth_token}"),
         )
 
-        assert response.status_code == 200
-        data = json.loads(response.data.decode())
-        assert "success" in data["status"]
+        data = assert_response(response, 200, contains={"status": "success"})
         assert (
             data["data"]["chart_data"]
             == workout_cycling_user_1_segment_0_chart_data_wo_hr_and_wo_coords
@@ -1841,9 +1798,7 @@ class TestGetWorkoutChartDataAsUser(
             headers=dict(Authorization=f"Bearer {auth_token}"),
         )
 
-        assert response.status_code == 200
-        data = json.loads(response.data.decode())
-        assert "success" in data["status"]
+        data = assert_response(response, 200, contains={"status": "success"})
         assert (
             data["data"]["chart_data"]
             == workout_cycling_user_1_segment_0_chart_data_wo_hr_and_wo_coords
@@ -1875,9 +1830,7 @@ class TestGetWorkoutChartDataAsUser(
             headers=dict(Authorization=f"Bearer {auth_token}"),
         )
 
-        assert response.status_code == 200
-        data = json.loads(response.data.decode())
-        assert "success" in data["status"]
+        data = assert_response(response, 200, contains={"status": "success"})
         assert (
             data["data"]["chart_data"]
             == workout_cycling_user_1_segment_0_chart_data_wo_hr
@@ -2035,9 +1988,7 @@ class TestGetWorkoutChartDataAsUnauthenticatedUser(
             ),
         )
 
-        assert response.status_code == 200
-        data = json.loads(response.data.decode())
-        assert "success" in data["status"]
+        data = assert_response(response, 200, contains={"status": "success"})
         assert (
             data["data"]["chart_data"]
             == workout_cycling_user_1_segment_0_chart_data_wo_hr_and_wo_coords
@@ -2147,9 +2098,7 @@ class TestGetWorkoutSegmentChartDataAsWorkoutOwner(
                 headers=dict(Authorization=f"Bearer {auth_token}"),
             )
 
-        assert response.status_code == 200
-        data = json.loads(response.data.decode())
-        assert "success" in data["status"]
+        data = assert_response(response, 200, contains={"status": "success"})
         assert data["data"]["chart_data"] == chart_data
 
     def test_it_returns_error_when_user_is_suspended(
@@ -2256,9 +2205,7 @@ class TestGetWorkoutSegmentChartDataAsFollower(
             headers=dict(Authorization=f"Bearer {auth_token}"),
         )
 
-        assert response.status_code == 200
-        data = json.loads(response.data.decode())
-        assert "success" in data["status"]
+        data = assert_response(response, 200, contains={"status": "success"})
         assert (
             data["data"]["chart_data"]
             == workout_cycling_user_1_segment_0_chart_data_wo_hr_and_wo_coords
@@ -2393,9 +2340,7 @@ class TestGetWorkoutSegmentChartDataAsUser(
             headers=dict(Authorization=f"Bearer {auth_token}"),
         )
 
-        assert response.status_code == 200
-        data = json.loads(response.data.decode())
-        assert "success" in data["status"]
+        data = assert_response(response, 200, contains={"status": "success"})
         assert (
             data["data"]["chart_data"]
             == workout_cycling_user_1_segment_0_chart_data_wo_hr_and_wo_coords
@@ -2515,9 +2460,7 @@ class TestGetWorkoutSegmentChartDataAsUnauthenticatedUser(
             ),
         )
 
-        assert response.status_code == 200
-        data = json.loads(response.data.decode())
-        assert "success" in data["status"]
+        data = assert_response(response, 200, contains={"status": "success"})
         assert (
             data["data"]["chart_data"]
             == workout_cycling_user_1_segment_0_chart_data_wo_hr_and_wo_coords
@@ -2552,7 +2495,8 @@ class TestGetWorkoutMap(WorkoutApiTestCaseMixin):
             response = client.get(
                 f"/api/workouts/map/{map_id}",
                 headers={
-                    "Authorization": f"Bearer {user_1.encode_auth_token(user_1.id)}"
+                    "Authorization": "Bearer "
+                    + user_1.encode_auth_token(user_1.id)
                 },
             )
 
@@ -2581,30 +2525,6 @@ class TestGetWorkoutMap(WorkoutApiTestCaseMixin):
         )
 
         self.assert_404_with_message(response, "Map file does not exist")
-
-
-class TestWorkoutScope(WorkoutApiTestCaseMixin):
-    @pytest.mark.parametrize(
-        "endpoint",
-        [
-            "/api/workouts/{workout_short_id}",
-            "/api/workouts/{workout_short_id}/gpx",
-            "/api/workouts/{workout_short_id}/chart_data",
-            "/api/workouts/{workout_short_id}/gpx/segment/1",
-            "/api/workouts/{workout_short_id}/chart_data/segment/1",
-        ],
-    )
-    def test_expected_scope_is_workouts_read(
-        self, app: Flask, user_1: User, endpoint: str
-    ) -> None:
-        self.assert_response_scope(
-            app=app,
-            user=user_1,
-            client_method="get",
-            endpoint=endpoint.format(workout_short_id=self.random_short_id()),
-            invalid_scope="workouts:write",
-            expected_endpoint_scope="workouts:read",
-        )
 
 
 class DownloadWorkoutGpxTestCase(WorkoutApiTestCaseMixin):
@@ -2734,18 +2654,6 @@ class TestDownloadWorkoutGpxAsWorkoutOwner(DownloadWorkoutGpxTestCase):
         )
 
         self.assert_403(response)
-
-    def test_expected_scope_is_workouts_read(
-        self, app: Flask, user_1: User
-    ) -> None:
-        self.assert_response_scope(
-            app=app,
-            user=user_1,
-            client_method="get",
-            endpoint=self.route.format(workout_uuid=self.random_short_id()),
-            invalid_scope="workouts:write",
-            expected_endpoint_scope="workouts:read",
-        )
 
 
 class TestDownloadWorkoutGpxAsFollower(DownloadWorkoutGpxTestCase):
@@ -2935,18 +2843,6 @@ class TestDownloadWorkoutOriginalFileAsWorkoutOwner(
         )
 
         self.assert_403(response)
-
-    def test_expected_scope_is_workouts_read(
-        self, app: Flask, user_1: User
-    ) -> None:
-        self.assert_response_scope(
-            app=app,
-            user=user_1,
-            client_method="get",
-            endpoint=self.route.format(workout_uuid=self.random_short_id()),
-            invalid_scope="workouts:write",
-            expected_endpoint_scope="workouts:read",
-        )
 
 
 class TestDownloadWorkoutOriginalFileAsFollower(

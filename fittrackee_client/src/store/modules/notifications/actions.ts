@@ -7,6 +7,7 @@ import type {
   INotificationsState,
 } from '@/store/modules/notifications/types'
 import type { IRootState } from '@/store/modules/root/types'
+import { handleApiRequest } from '@/store/request'
 import type {
   INotificationPayload,
   INotificationsPayload,
@@ -35,50 +36,36 @@ export const actions: ActionTree<INotificationsState, IRootState> &
     payload: INotificationsPayload
   ): void {
     context.commit(ROOT_STORE.MUTATIONS.EMPTY_ERROR_MESSAGES)
-    authApi
-      .get('notifications/types', { params: payload })
-      .then((res) => {
-        if (res.data.status === 'success') {
-          context.commit(
-            NOTIFICATIONS_STORE.MUTATIONS.UPDATE_TYPES,
-            res.data.notification_types
-          )
-        } else {
-          handleError(context, null)
-        }
-      })
-      .catch((error) => {
-        if (error.message !== 'canceled') {
-          handleError(context, error)
-        }
-      })
+    handleApiRequest(
+      context,
+      authApi.get('notifications/types', { params: payload }),
+      (data) => {
+        context.commit(
+          NOTIFICATIONS_STORE.MUTATIONS.UPDATE_TYPES,
+          data.notification_types
+        )
+      }
+    )
   },
   [NOTIFICATIONS_STORE.ACTIONS.GET_NOTIFICATIONS](
     context: ActionContext<INotificationsState, IRootState>,
     payload: INotificationsPayload
   ): Promise<void> {
     context.commit(ROOT_STORE.MUTATIONS.EMPTY_ERROR_MESSAGES)
-    return authApi
-      .get('notifications', { params: payload })
-      .then((res) => {
-        if (res.data.status === 'success') {
-          context.commit(
-            NOTIFICATIONS_STORE.MUTATIONS.UPDATE_NOTIFICATIONS,
-            res.data.notifications
-          )
-          context.commit(
-            NOTIFICATIONS_STORE.MUTATIONS.UPDATE_PAGINATION,
-            res.data.pagination
-          )
-        } else {
-          handleError(context, null)
-        }
-      })
-      .catch((error) => {
-        if (error.message !== 'canceled') {
-          handleError(context, error)
-        }
-      })
+    return handleApiRequest(
+      context,
+      authApi.get('notifications', { params: payload }),
+      (data) => {
+        context.commit(
+          NOTIFICATIONS_STORE.MUTATIONS.UPDATE_NOTIFICATIONS,
+          data.notifications
+        )
+        context.commit(
+          NOTIFICATIONS_STORE.MUTATIONS.UPDATE_PAGINATION,
+          data.pagination
+        )
+      }
+    )
   },
   [NOTIFICATIONS_STORE.ACTIONS.MARK_ALL_AS_READ](
     context: ActionContext<INotificationsState, IRootState>,
@@ -89,49 +76,32 @@ export const actions: ActionTree<INotificationsState, IRootState> &
     if (payload.type) {
       data['type'] = payload.type
     }
-    authApi
-      .post('notifications/mark-all-as-read', data)
-      .then((res) => {
-        if (res.data.status === 'success') {
-          context.dispatch(
-            NOTIFICATIONS_STORE.ACTIONS.GET_NOTIFICATIONS,
-            payload
-          )
-          context.dispatch(NOTIFICATIONS_STORE.ACTIONS.GET_UNREAD_STATUS)
-        } else {
-          handleError(context, null)
-        }
-      })
-      .catch((error) => {
-        if (error.message !== 'canceled') {
-          handleError(context, error)
-        }
-      })
+    handleApiRequest(
+      context,
+      authApi.post('notifications/mark-all-as-read', data),
+      () => {
+        context.dispatch(NOTIFICATIONS_STORE.ACTIONS.GET_NOTIFICATIONS, payload)
+        context.dispatch(NOTIFICATIONS_STORE.ACTIONS.GET_UNREAD_STATUS)
+      }
+    )
   },
   [NOTIFICATIONS_STORE.ACTIONS.UPDATE_STATUS](
     context: ActionContext<INotificationsState, IRootState>,
     payload: INotificationPayload
   ): void {
     context.commit(ROOT_STORE.MUTATIONS.EMPTY_ERROR_MESSAGES)
-    authApi
-      .patch(`notifications/${payload.notificationId}`, {
+    handleApiRequest(
+      context,
+      authApi.patch(`notifications/${payload.notificationId}`, {
         read_status: payload.markedAsRead,
-      })
-      .then((res) => {
-        if (res.data.status === 'success') {
-          context.dispatch(
-            NOTIFICATIONS_STORE.ACTIONS.GET_NOTIFICATIONS,
-            payload.currentQuery
-          )
-          context.dispatch(NOTIFICATIONS_STORE.ACTIONS.GET_UNREAD_STATUS)
-        } else {
-          handleError(context, null)
-        }
-      })
-      .catch((error) => {
-        if (error.message !== 'canceled') {
-          handleError(context, error)
-        }
-      })
+      }),
+      () => {
+        context.dispatch(
+          NOTIFICATIONS_STORE.ACTIONS.GET_NOTIFICATIONS,
+          payload.currentQuery
+        )
+        context.dispatch(NOTIFICATIONS_STORE.ACTIONS.GET_UNREAD_STATUS)
+      }
+    )
   },
 }

@@ -1,38 +1,30 @@
 import json
 import os
-import shutil
-import tempfile
 import time
 from datetime import datetime, timedelta, timezone
 from io import BytesIO
-from pathlib import Path
 from typing import TYPE_CHECKING, Dict, List, Optional, Tuple, Union
-from unittest.mock import Mock, patch
 from urllib.parse import parse_qs
 from uuid import uuid4
 
 import jwt
-from flask import Flask, current_app
+from flask import Flask
 from flask.testing import FlaskClient
 from geoalchemy2.shape import to_shape
 from shapely import to_geojson
 from shapely.geometry.multilinestring import MultiLineString
-from sqlalchemy.dialects.postgresql import insert
 from urllib3.util import parse_url
 from werkzeug.datastructures import FileStorage
 from werkzeug.test import TestResponse
 
 from fittrackee import db
 from fittrackee.comments.models import Comment
-from fittrackee.files import get_absolute_file_path
 from fittrackee.media.models import Media
 from fittrackee.oauth2.client import create_oauth2_client
 from fittrackee.oauth2.models import OAuth2Client, OAuth2Token
-from fittrackee.oauth2.server import CustomResourceProtector
-from fittrackee.reports.models import Report, ReportAction, ReportActionAppeal
+from fittrackee.reports.models import Report, ReportAction
 from fittrackee.users.models import (
     User,
-    UserSportPreferenceEquipment,
     UserTask,
 )
 from fittrackee.utils import encode_uuid
@@ -54,9 +46,6 @@ from .utils import (
 if TYPE_CHECKING:
     from geoalchemy2.elements import WKBElement
 
-    from fittrackee.equipments.models import Equipment
-    from fittrackee.users.models import UserSportPreference
-
 
 class RandomMixin:
     @staticmethod
@@ -66,10 +55,6 @@ class RandomMixin:
         suffix: Optional[str] = None,
     ) -> str:
         return random_string(length, prefix, suffix)
-
-    @staticmethod
-    def random_domain() -> str:
-        return random_string(prefix="https://", suffix="com")
 
     @staticmethod
     def random_uri(scheme: str = "https://", tld: str = ".social") -> str:
@@ -326,37 +311,6 @@ class ApiTestCaseMixin(OAuth2Mixin, RandomMixin):
             ),
         )
 
-    def assert_response_scope(
-        self,
-        *,
-        app: "Flask",
-        user: "User",
-        client_method: str,
-        endpoint: str,
-        invalid_scope: str,
-        expected_endpoint_scope: str,
-    ) -> None:
-        (
-            client,
-            _,
-            access_token,
-            _,
-        ) = self.create_oauth2_client_and_issue_token(
-            app, user, scope=invalid_scope
-        )
-
-        with patch.object(
-            CustomResourceProtector,
-            "acquire_token",
-            return_value=OAuth2Token(),
-        ) as acquire_token_mock:
-            getattr(client, client_method)(
-                endpoint,
-                headers=dict(Authorization=f"Bearer {access_token}"),
-            )
-
-        acquire_token_mock.assert_called_once_with([expected_endpoint_scope])
-
     @staticmethod
     def assert_return_not_found(
         url: str, client: FlaskClient, auth_token: str, message: str
@@ -438,46 +392,6 @@ class ReportMixin(RandomMixin):
         db.session.commit()
         return report_action
 
-    def create_report_user_action(
-        self,
-        admin: User,
-        user: User,
-        action_type: str = "user_suspension",
-        report_id: Optional[int] = None,
-    ) -> ReportAction:
-        report_id = (
-            report_id if report_id else self.create_user_report(admin, user).id
-        )
-        report_action = self.create_report_action(
-            admin, user, action_type=action_type, report_id=report_id
-        )
-        user.suspended_at = (
-            datetime.now(timezone.utc)
-            if action_type == "user_suspension"
-            else None
-        )
-        db.session.commit()
-        return report_action
-
-    def create_report_workout_action(
-        self,
-        admin: User,
-        user: User,
-        workout: Workout,
-        action_type: str = "workout_suspension",
-    ) -> ReportAction:
-        report_action = ReportAction(
-            action_type=action_type,
-            moderator_id=admin.id,
-            report_id=self.create_report(
-                reporter=admin, reported_object=workout
-            ).id,
-            workout_id=workout.id,
-            user_id=user.id,
-        )
-        db.session.add(report_action)
-        return report_action
-
     def create_report_comment_action(
         self,
         admin: User,
@@ -501,36 +415,6 @@ class ReportMixin(RandomMixin):
             else None
         )
         return report_action
-
-    def create_report_comment_actions(
-        self, admin: User, user: User, comment: Comment
-    ) -> ReportAction:
-        for n in range(2):
-            action_type = (
-                "comment_suspension" if n % 2 == 0 else "comment_unsuspension"
-            )
-            report_action = self.create_report_comment_action(
-                admin, user, comment, action_type
-            )
-            db.session.add(report_action)
-        report_action = self.create_report_comment_action(
-            admin, user, comment, "comment_suspension"
-        )
-        db.session.add(report_action)
-        return report_action
-
-    def create_action_appeal(
-        self, action_id: int, user: User, with_commit: bool = True
-    ) -> ReportActionAppeal:
-        report_action_appeal = ReportActionAppeal(
-            action_id=action_id,
-            user_id=user.id,
-            text=self.random_string(),
-        )
-        db.session.add(report_action_appeal)
-        if with_commit:
-            db.session.commit()
-        return report_action_appeal
 
 
 class UserTaskMixin:
@@ -559,100 +443,6 @@ class UserTaskMixin:
         db.session.commit()
         return data_export_task
 
-    @staticmethod
-    def generate_temporary_data_export(
-        user_id: int,
-        file: str,
-    ) -> str:
-        file_path = get_absolute_file_path(
-            os.path.join("exports", str(user_id), file)
-        )
-        export_file = Path(file_path)
-        export_file.parent.mkdir(exist_ok=True, parents=True)
-        export_file.write_text("some text")
-        return file_path
-
-    @staticmethod
-    def create_workouts_upload_task(
-        user: "User",
-        *,
-        workouts_data: Optional[Dict] = None,
-        files_to_process: Optional[List[str]] = None,
-        equipment_ids: Optional[List[int]] = None,
-        file_path: str = "",
-        file_size: Optional[int] = None,
-        progress: int = 0,
-        new_workouts_count: int = 0,
-        errored: bool = False,
-        original_file_name: Optional[str] = None,
-        aborted: bool = False,
-        message_id: Optional[str] = None,
-        updated_at: Optional[datetime] = None,
-    ) -> "UserTask":
-        upload_task = UserTask(
-            user_id=user.id,
-            task_type="workouts_archive_upload",
-            data={
-                "new_workouts_count": new_workouts_count,
-                "workouts_data": workouts_data if workouts_data else {},
-                "files_to_process": files_to_process
-                if files_to_process
-                else [],
-                "equipment_ids": equipment_ids,
-                "original_file_name": original_file_name,
-            },
-            file_path=file_path,
-        )
-        upload_task.aborted = aborted
-        upload_task.progress = progress
-        upload_task.errored = errored
-        upload_task.file_size = file_size
-        upload_task.message_id = message_id
-        upload_task.updated_at = updated_at
-        db.session.add(upload_task)
-        db.session.commit()
-        return upload_task
-
-    @staticmethod
-    def generate_temporary_archive(
-        zip_archive: str = "tests/files/gpx_test.zip",
-    ) -> str:
-        _, file_path = tempfile.mkstemp(prefix="archive_", suffix=".zip")
-        shutil.copyfile(
-            os.path.join(current_app.root_path, zip_archive), file_path
-        )
-        return file_path
-
-
-class WorkoutMixin:
-    @staticmethod
-    def update_workout_with_file_data(
-        workout: Workout,
-        map_id: Optional[str] = None,
-        gpx_path: Optional[str] = None,
-        bounds: Optional[List[float]] = None,
-        ascent: Optional[int] = 26,
-        descent: Optional[int] = 12,
-        max_alt: Optional[int] = 260,
-        min_alt: Optional[int] = 236,
-        ave_pace_seconds: int = 781,
-        max_pace_seconds: int = 704,
-    ) -> Workout:
-        workout.map_id = map_id
-        workout.map = random_string() if map_id is None else map_id
-        workout.original_file = (
-            random_string() if gpx_path is None else gpx_path
-        )
-        workout.bounds = [1.0, 2.0, 3.0, 4.0] if bounds is None else bounds
-        workout.pauses = timedelta(minutes=15)
-        workout.ascent = ascent
-        workout.descent = descent
-        workout.max_alt = max_alt
-        workout.min_alt = min_alt
-        workout.ave_pace = timedelta(seconds=ave_pace_seconds)
-        workout.best_pace = timedelta(seconds=max_pace_seconds)
-        return workout
-
 
 class ImageMixin:
     @staticmethod
@@ -673,27 +463,7 @@ class ImageMixin:
 
 
 class EquipmentMixin:
-    @staticmethod
-    def add_user_sport_preference_equipement(
-        equipement_list: List["Equipment"],
-        user_sport_preference: "UserSportPreference",
-    ) -> None:
-        user_sport_preference_equipement = []
-        for equipement in equipement_list:
-            user_sport_preference_equipement.append(
-                {
-                    "equipment_id": equipement.id,
-                    "equipment_type_id": equipement.equipment_type_id,
-                    "sport_id": user_sport_preference.sport_id,
-                    "user_id": user_sport_preference.user_id,
-                }
-            )
-        if user_sport_preference_equipement:
-            db.session.execute(
-                insert(UserSportPreferenceEquipment).values(
-                    user_sport_preference_equipement
-                )
-            )
+    pass
 
 
 class GeometryMixin:
@@ -707,16 +477,6 @@ class GeometryMixin:
     ) -> Dict:
         line_strings = [to_shape(geometry) for geometry in geometries]
         return json.loads(to_geojson(MultiLineString(line_strings)))
-
-
-class ResponseMockMixin:
-    @staticmethod
-    def get_response(response: Union[List, Dict]) -> "Mock":
-        response_mock = Mock()
-        response_mock.raise_for_status = Mock()
-        response_mock.json = Mock()
-        response_mock.json.return_value = response
-        return response_mock
 
 
 class MediaMixin:

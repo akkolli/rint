@@ -1,8 +1,8 @@
-import json
 from datetime import datetime, timezone
 
 from flask import Flask
 
+from fittrackee.tests.custom_asserts import assert_response
 from fittrackee.users.models import FollowRequest, User
 
 from ..mixins import ApiTestCaseMixin
@@ -49,10 +49,9 @@ class TestFollow(ApiTestCaseMixin):
             headers=dict(Authorization=f"Bearer {auth_token}"),
         )
 
-        assert response.status_code == 404
-        data = json.loads(response.data.decode())
-        assert data["status"] == "not found"
-        assert data["message"] == "user does not exist"
+        assert_response(
+            response, 404, status="not found", message="user does not exist"
+        )
 
     def test_it_returns_error_if_target_user_has_already_rejected_request(
         self,
@@ -75,10 +74,12 @@ class TestFollow(ApiTestCaseMixin):
             headers=dict(Authorization=f"Bearer {auth_token}"),
         )
 
-        assert response.status_code == 403
-        data = json.loads(response.data.decode())
-        assert data["status"] == "error"
-        assert data["message"] == "you do not have permissions"
+        assert_response(
+            response,
+            403,
+            status="error",
+            message="you do not have permissions",
+        )
 
     def test_it_returns_error_if_target_user_has_blocked_user(
         self,
@@ -97,10 +98,12 @@ class TestFollow(ApiTestCaseMixin):
             headers=dict(Authorization=f"Bearer {auth_token}"),
         )
 
-        assert response.status_code == 400
-        data = json.loads(response.data.decode())
-        assert data["status"] == "error"
-        assert data["message"] == "you can not follow this user"
+        assert_response(
+            response,
+            400,
+            status="error",
+            message="you can not follow this user",
+        )
 
     def test_it_creates_follow_request(
         self, app: Flask, user_1: User, user_2: User
@@ -115,9 +118,7 @@ class TestFollow(ApiTestCaseMixin):
             headers=dict(Authorization=f"Bearer {auth_token}"),
         )
 
-        assert response.status_code == 200
-        data = json.loads(response.data.decode())
-        assert data["status"] == "success"
+        data = assert_response(response, 200, status="success")
         assert (
             data["message"]
             == f"Follow request to user '{user_2.username}' is sent."
@@ -140,24 +141,10 @@ class TestFollow(ApiTestCaseMixin):
             headers=dict(Authorization=f"Bearer {auth_token}"),
         )
 
-        assert response.status_code == 200
-        data = json.loads(response.data.decode())
-        assert data["status"] == "success"
+        data = assert_response(response, 200, status="success")
         assert (
             data["message"]
             == f"Follow request to user '{user_2.username}' is sent."
-        )
-
-    def test_expected_scope_is_follow_write(
-        self, app: Flask, user_1: User
-    ) -> None:
-        self.assert_response_scope(
-            app=app,
-            user=user_1,
-            client_method="post",
-            endpoint=f"/api/users/{self.random_string()}/follow",
-            invalid_scope="follow:read",
-            expected_endpoint_scope="follow:write",
         )
 
 
@@ -201,10 +188,9 @@ class TestUnfollow(ApiTestCaseMixin):
             headers=dict(Authorization=f"Bearer {auth_token}"),
         )
 
-        assert response.status_code == 404
-        data = json.loads(response.data.decode())
-        assert data["status"] == "not found"
-        assert data["message"] == "user does not exist"
+        assert_response(
+            response, 404, status="not found", message="user does not exist"
+        )
 
     def test_it_returns_error_if_follow_request_does_not_exist(
         self, app: Flask, user_1: User, user_2: User
@@ -219,10 +205,12 @@ class TestUnfollow(ApiTestCaseMixin):
             headers=dict(Authorization=f"Bearer {auth_token}"),
         )
 
-        assert response.status_code == 404
-        data = json.loads(response.data.decode())
-        assert data["status"] == "not found"
-        assert data["message"] == "relationship does not exist"
+        assert_response(
+            response,
+            404,
+            status="not found",
+            message="relationship does not exist",
+        )
 
     def test_it_removes_follow_request(
         self,
@@ -241,9 +229,7 @@ class TestUnfollow(ApiTestCaseMixin):
             headers=dict(Authorization=f"Bearer {auth_token}"),
         )
 
-        assert response.status_code == 200
-        data = json.loads(response.data.decode())
-        assert data["status"] == "success"
+        data = assert_response(response, 200, status="success")
         assert data["message"] == (
             f"Undo for a follow request to user '{user_2.username}' is sent."
         )
@@ -268,15 +254,3 @@ class TestUnfollow(ApiTestCaseMixin):
         )
 
         self.assert_404_with_message(response, "relationship does not exist")
-
-    def test_expected_scope_is_follow_write(
-        self, app: Flask, user_1: User
-    ) -> None:
-        self.assert_response_scope(
-            app=app,
-            user=user_1,
-            client_method="post",
-            endpoint=f"/api/users/{self.random_string()}/unfollow",
-            invalid_scope="follow:read",
-            expected_endpoint_scope="follow:write",
-        )

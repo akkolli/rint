@@ -13,6 +13,7 @@ import type {
   IEquipmentTypesState,
 } from '@/store/modules/equipments/types'
 import type { IRootState } from '@/store/modules/root/types'
+import { handleApiRequest } from '@/store/request'
 import type {
   IAddEquipmentPayload,
   IDeleteEquipmentPayload,
@@ -28,28 +29,26 @@ export const actions: ActionTree<IEquipmentTypesState, IRootState> &
     payload: IAddEquipmentPayload
   ): void {
     context.commit(ROOT_STORE.MUTATIONS.EMPTY_ERROR_MESSAGES)
-    authApi
-      .post('equipments', {
+    handleApiRequest(
+      context,
+      authApi.post('equipments', {
         description: payload.description,
         equipment_type_id: payload.equipmentTypeId,
         label: payload.label,
         default_for_sport_ids: payload.defaultForSportIds,
         visibility: payload.visibility,
-      })
-      .then((res) => {
-        if (res.data.status === 'created') {
-          if (res.data.data.equipments.length > 0) {
-            const equipment = res.data.data.equipments[0]
-            context.commit(EQUIPMENTS_STORE.MUTATIONS.ADD_EQUIPMENT, equipment)
-            router.push(`/profile/equipments/${equipment.id}`)
-          }
-          context.dispatch(SPORTS_STORE.ACTIONS.GET_SPORTS)
-          context.commit(AUTH_USER_STORE.MUTATIONS.UPDATE_USER_LOADING, false)
-        } else {
-          handleError(context, null)
+      }),
+      (data) => {
+        if (data.data.equipments.length > 0) {
+          const equipment = data.data.equipments[0]
+          context.commit(EQUIPMENTS_STORE.MUTATIONS.ADD_EQUIPMENT, equipment)
+          router.push(`/profile/equipments/${equipment.id}`)
         }
-      })
-      .catch((error) => handleError(context, error))
+        context.dispatch(SPORTS_STORE.ACTIONS.GET_SPORTS)
+        context.commit(AUTH_USER_STORE.MUTATIONS.UPDATE_USER_LOADING, false)
+      },
+      'created'
+    )
   },
   [EQUIPMENTS_STORE.ACTIONS.DELETE_EQUIPMENT](
     context: ActionContext<IEquipmentTypesState, IRootState>,
@@ -70,58 +69,41 @@ export const actions: ActionTree<IEquipmentTypesState, IRootState> &
     equipmentId: number
   ): void {
     context.commit(ROOT_STORE.MUTATIONS.EMPTY_ERROR_MESSAGES)
-    authApi
-      .get(`equipments/${equipmentId}`)
-      .then((res) => {
-        if (res.data.status === 'success') {
-          if (res.data.data.equipments.length > 0) {
-            context.commit(
-              EQUIPMENTS_STORE.MUTATIONS.UPDATE_EQUIPMENT,
-              res.data.data.equipments[0]
-            )
-          }
-        } else {
-          handleError(context, null)
+    handleApiRequest(
+      context,
+      authApi.get(`equipments/${equipmentId}`),
+      (data) => {
+        if (data.data.equipments.length > 0) {
+          context.commit(
+            EQUIPMENTS_STORE.MUTATIONS.UPDATE_EQUIPMENT,
+            data.data.equipments[0]
+          )
         }
-      })
-      .catch((error) => handleError(context, error))
+      }
+    )
   },
   [EQUIPMENTS_STORE.ACTIONS.GET_EQUIPMENTS](
     context: ActionContext<IEquipmentTypesState, IRootState>
   ): void {
     context.commit(ROOT_STORE.MUTATIONS.EMPTY_ERROR_MESSAGES)
-    authApi
-      .get('equipments')
-      .then((res) => {
-        if (res.data.status === 'success') {
-          context.commit(
-            EQUIPMENTS_STORE.MUTATIONS.SET_EQUIPMENTS,
-            res.data.data.equipments
-          )
-        } else {
-          handleError(context, null)
-        }
-      })
-      .catch((error) => handleError(context, error))
+    handleApiRequest(context, authApi.get('equipments'), (data) => {
+      context.commit(
+        EQUIPMENTS_STORE.MUTATIONS.SET_EQUIPMENTS,
+        data.data.equipments
+      )
+    })
   },
   [EQUIPMENTS_STORE.ACTIONS.GET_EQUIPMENT_TYPES](
     context: ActionContext<IEquipmentTypesState, IRootState>
   ): void {
     context.commit(ROOT_STORE.MUTATIONS.EMPTY_ERROR_MESSAGES)
-    authApi
-      .get('equipment-types')
-      .then((res) => {
-        if (res.data.status === 'success') {
-          context.commit(
-            EQUIPMENTS_STORE.MUTATIONS.SET_EQUIPMENT_TYPES,
-            res.data.data.equipment_types
-          )
-          context.commit(AUTH_USER_STORE.MUTATIONS.UPDATE_USER_LOADING, false)
-        } else {
-          handleError(context, null)
-        }
-      })
-      .catch((error) => handleError(context, error))
+    handleApiRequest(context, authApi.get('equipment-types'), (data) => {
+      context.commit(
+        EQUIPMENTS_STORE.MUTATIONS.SET_EQUIPMENT_TYPES,
+        data.data.equipment_types
+      )
+      context.commit(AUTH_USER_STORE.MUTATIONS.UPDATE_USER_LOADING, false)
+    })
   },
   [EQUIPMENTS_STORE.ACTIONS.REFRESH_EQUIPMENT](
     context: ActionContext<IEquipmentTypesState, IRootState>,
@@ -129,25 +111,21 @@ export const actions: ActionTree<IEquipmentTypesState, IRootState> &
   ): void {
     context.commit(ROOT_STORE.MUTATIONS.EMPTY_ERROR_MESSAGES)
     context.commit(EQUIPMENTS_STORE.MUTATIONS.SET_LOADING, true)
-    authApi
-      .post(`equipments/${equipmentId}/refresh`)
-      .then((res) => {
-        if (res.data.status === 'success') {
-          if (res.data.data.equipments.length > 0) {
-            context.commit(
-              EQUIPMENTS_STORE.MUTATIONS.UPDATE_EQUIPMENT,
-              res.data.data.equipments[0]
-            )
-            router.push(`/profile/equipments/${equipmentId}`)
-          }
-        } else {
-          handleError(context, null)
+    handleApiRequest(
+      context,
+      authApi.post(`equipments/${equipmentId}/refresh`),
+      (data) => {
+        if (data.data.equipments.length > 0) {
+          context.commit(
+            EQUIPMENTS_STORE.MUTATIONS.UPDATE_EQUIPMENT,
+            data.data.equipments[0]
+          )
+          router.push(`/profile/equipments/${equipmentId}`)
         }
-      })
-      .catch((error) => handleError(context, error))
-      .finally(() =>
-        context.commit(EQUIPMENTS_STORE.MUTATIONS.SET_LOADING, false)
-      )
+      }
+    ).finally(() =>
+      context.commit(EQUIPMENTS_STORE.MUTATIONS.SET_LOADING, false)
+    )
   },
   [EQUIPMENTS_STORE.ACTIONS.UPDATE_EQUIPMENT](
     context: ActionContext<IEquipmentTypesState, IRootState>,
@@ -155,33 +133,29 @@ export const actions: ActionTree<IEquipmentTypesState, IRootState> &
   ): void {
     context.commit(ROOT_STORE.MUTATIONS.EMPTY_ERROR_MESSAGES)
     context.commit(EQUIPMENTS_STORE.MUTATIONS.SET_LOADING, true)
-    authApi
-      .patch(`equipments/${payload.id}`, {
+    handleApiRequest(
+      context,
+      authApi.patch(`equipments/${payload.id}`, {
         description: payload.description,
         equipment_type_id: payload.equipmentTypeId,
         is_active: payload.isActive,
         label: payload.label,
         default_for_sport_ids: payload.defaultForSportIds,
         visibility: payload.visibility,
-      })
-      .then((res) => {
-        if (res.data.status === 'success') {
-          if (res.data.data.equipments.length > 0) {
-            context.commit(
-              EQUIPMENTS_STORE.MUTATIONS.UPDATE_EQUIPMENT,
-              res.data.data.equipments[0]
-            )
-            context.dispatch(SPORTS_STORE.ACTIONS.GET_SPORTS)
-            router.push(`/profile/equipments/${payload.id}`)
-          }
-        } else {
-          handleError(context, null)
+      }),
+      (data) => {
+        if (data.data.equipments.length > 0) {
+          context.commit(
+            EQUIPMENTS_STORE.MUTATIONS.UPDATE_EQUIPMENT,
+            data.data.equipments[0]
+          )
+          context.dispatch(SPORTS_STORE.ACTIONS.GET_SPORTS)
+          router.push(`/profile/equipments/${payload.id}`)
         }
-      })
-      .catch((error) => handleError(context, error))
-      .finally(() =>
-        context.commit(EQUIPMENTS_STORE.MUTATIONS.SET_LOADING, false)
-      )
+      }
+    ).finally(() =>
+      context.commit(EQUIPMENTS_STORE.MUTATIONS.SET_LOADING, false)
+    )
   },
   [EQUIPMENTS_STORE.ACTIONS.UPDATE_EQUIPMENT_TYPE](
     context: ActionContext<IEquipmentTypesState, IRootState>,
@@ -189,18 +163,16 @@ export const actions: ActionTree<IEquipmentTypesState, IRootState> &
   ): void {
     context.commit(ROOT_STORE.MUTATIONS.EMPTY_ERROR_MESSAGES)
     context.commit(EQUIPMENTS_STORE.MUTATIONS.SET_LOADING, true)
-    authApi
-      .patch(`equipment-types/${payload.id}`, { is_active: payload.isActive })
-      .then((res) => {
-        if (res.data.status === 'success') {
-          context.dispatch(EQUIPMENTS_STORE.ACTIONS.GET_EQUIPMENT_TYPES)
-        } else {
-          handleError(context, null)
-        }
-      })
-      .catch((error) => handleError(context, error))
-      .finally(() =>
-        context.commit(EQUIPMENTS_STORE.MUTATIONS.SET_LOADING, false)
-      )
+    handleApiRequest(
+      context,
+      authApi.patch(`equipment-types/${payload.id}`, {
+        is_active: payload.isActive,
+      }),
+      () => {
+        context.dispatch(EQUIPMENTS_STORE.ACTIONS.GET_EQUIPMENT_TYPES)
+      }
+    ).finally(() =>
+      context.commit(EQUIPMENTS_STORE.MUTATIONS.SET_LOADING, false)
+    )
   },
 }

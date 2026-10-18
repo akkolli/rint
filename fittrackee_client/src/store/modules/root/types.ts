@@ -45,7 +45,7 @@ export interface IRootActions {
   [ROOT_STORE.ACTIONS.UPDATE_APPLICATION_LANGUAGE](
     context: ActionContext<IRootState, IRootState>,
     language: TLanguage
-  ): void
+  ): Promise<void>
 }
 
 export interface IRootGetters {

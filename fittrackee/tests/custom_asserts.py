@@ -5,6 +5,29 @@ from typing import Dict, Optional
 from werkzeug.test import TestResponse
 
 
+def assert_response(
+    response: TestResponse,
+    status_code: int,
+    *,
+    contains: Optional[Dict] = None,
+    **expected: object,
+) -> Dict:
+    """Check exact HTTP/envelope contracts and return the full JSON payload.
+
+    Only named fields are checked; callers retain their domain assertions.
+    Unlike error substring helpers, each expected value must match exactly.
+    """
+    assert response.status_code == status_code
+    data = json.loads(response.data.decode())
+    for field, value in (contains or {}).items():
+        assert value in data[field], (
+            f"missing value in response field: {field}"
+        )
+    for field, value in expected.items():
+        assert data[field] == value, f"unexpected response field: {field}"
+    return data
+
+
 def assert_errored_response(
     response: TestResponse,
     status_code: int,

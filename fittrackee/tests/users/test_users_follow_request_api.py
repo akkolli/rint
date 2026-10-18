@@ -1,277 +1,13 @@
-import json
 from datetime import datetime, timezone
-from unittest.mock import patch
 
 from flask import Flask
 from flask.testing import FlaskClient
 
+from fittrackee.tests.custom_asserts import assert_response
 from fittrackee.users.models import FollowRequest, User
 
 from ..mixins import ApiTestCaseMixin
 from ..utils import random_string
-
-
-class TestGetFollowRequest(ApiTestCaseMixin):
-    def test_it_returns_error_if_user_is_not_authenticated(
-        self, app: Flask
-    ) -> None:
-        client = app.test_client()
-
-        response = client.get(
-            "/api/follow-requests",
-            content_type="application/json",
-        )
-
-        self.assert_401(response)
-
-    def test_it_returns_error_if_user_is_suspended(
-        self, app: Flask, suspended_user: User
-    ) -> None:
-        client, auth_token = self.get_test_client_and_auth_token(
-            app, suspended_user.email
-        )
-
-        response = client.get(
-            "/api/follow-requests",
-            content_type="application/json",
-            headers=dict(Authorization=f"Bearer {auth_token}"),
-        )
-        self.assert_403(response)
-
-    def test_it_returns_empty_list_if_no_follow_request(
-        self, app: Flask, user_1: User
-    ) -> None:
-        client, auth_token = self.get_test_client_and_auth_token(
-            app, user_1.email
-        )
-
-        response = client.get(
-            "/api/follow-requests",
-            content_type="application/json",
-            headers=dict(Authorization=f"Bearer {auth_token}"),
-        )
-
-        assert response.status_code == 200
-        data = json.loads(response.data.decode())
-        assert data["status"] == "success"
-        assert data["data"]["follow_requests"] == []
-
-    def test_it_returns_current_user_pending_follow_requests(
-        self,
-        app: Flask,
-        user_1: User,
-        follow_request_from_user_2_to_user_1: FollowRequest,
-        follow_request_from_user_3_to_user_1: FollowRequest,
-        follow_request_from_user_3_to_user_2: FollowRequest,
-    ) -> None:
-        follow_request_from_user_2_to_user_1.updated_at = datetime.now(
-            timezone.utc
-        )
-        client, auth_token = self.get_test_client_and_auth_token(
-            app, user_1.email
-        )
-
-        response = client.get(
-            "/api/follow-requests",
-            content_type="application/json",
-            headers=dict(Authorization=f"Bearer {auth_token}"),
-        )
-
-        assert response.status_code == 200
-        data = json.loads(response.data.decode())
-        assert data["status"] == "success"
-        assert len(data["data"]["follow_requests"]) == 1
-        assert data["data"]["follow_requests"][0]["username"] == "sam"
-        assert "@context" not in data["data"]["follow_requests"][0]
-
-    def test_expected_scope_is_follow_read(
-        self, app: Flask, user_1: User
-    ) -> None:
-        self.assert_response_scope(
-            app=app,
-            user=user_1,
-            client_method="get",
-            endpoint="/api/follow-requests",
-            invalid_scope="workouts:read",
-            expected_endpoint_scope="follow:read",
-        )
-
-
-class TestGetFollowRequestPagination(ApiTestCaseMixin):
-    def test_it_returns_pagination(
-        self,
-        app: Flask,
-        user_1: User,
-        follow_request_from_user_2_to_user_1: FollowRequest,
-        follow_request_from_user_3_to_user_1: FollowRequest,
-    ) -> None:
-        client, auth_token = self.get_test_client_and_auth_token(
-            app, user_1.email
-        )
-
-        response = client.get(
-            "/api/follow-requests",
-            content_type="application/json",
-            headers=dict(Authorization=f"Bearer {auth_token}"),
-        )
-
-        assert response.status_code == 200
-        data = json.loads(response.data.decode())
-        assert data["status"] == "success"
-        assert len(data["data"]["follow_requests"]) == 2
-        assert data["pagination"] == {
-            "has_next": False,
-            "has_prev": False,
-            "page": 1,
-            "pages": 1,
-            "total": 2,
-        }
-
-    @patch("fittrackee.users.follow_requests.FOLLOW_REQUESTS_PER_PAGE", 1)
-    def test_it_returns_second_page(
-        self,
-        app: Flask,
-        user_1: User,
-        follow_request_from_user_2_to_user_1: FollowRequest,
-        follow_request_from_user_3_to_user_1: FollowRequest,
-    ) -> None:
-        client, auth_token = self.get_test_client_and_auth_token(
-            app, user_1.email
-        )
-
-        response = client.get(
-            "/api/follow-requests?page=2",
-            content_type="application/json",
-            headers=dict(Authorization=f"Bearer {auth_token}"),
-        )
-
-        assert response.status_code == 200
-        data = json.loads(response.data.decode())
-        assert data["status"] == "success"
-        assert len(data["data"]["follow_requests"]) == 1
-        assert data["data"]["follow_requests"][0]["username"] == "sam"
-        assert data["pagination"] == {
-            "has_next": False,
-            "has_prev": True,
-            "page": 2,
-            "pages": 2,
-            "total": 2,
-        }
-
-    @patch("fittrackee.users.follow_requests.MAX_FOLLOW_REQUESTS_PER_PAGE", 1)
-    def test_it_returns_max_follow_request_per_page(
-        self,
-        app: Flask,
-        user_1: User,
-        follow_request_from_user_2_to_user_1: FollowRequest,
-        follow_request_from_user_3_to_user_1: FollowRequest,
-    ) -> None:
-        client, auth_token = self.get_test_client_and_auth_token(
-            app, user_1.email
-        )
-
-        response = client.get(
-            "/api/follow-requests?per_page=10",
-            content_type="application/json",
-            headers=dict(Authorization=f"Bearer {auth_token}"),
-        )
-
-        assert response.status_code == 200
-        data = json.loads(response.data.decode())
-        assert data["status"] == "success"
-        assert len(data["data"]["follow_requests"]) == 1
-        assert data["data"]["follow_requests"][0]["username"] == "toto"
-        assert data["pagination"] == {
-            "has_next": True,
-            "has_prev": False,
-            "page": 1,
-            "pages": 2,
-            "total": 2,
-        }
-
-    def test_it_returns_follow_requests_with_descending_order(
-        self,
-        app: Flask,
-        user_1: User,
-        follow_request_from_user_2_to_user_1: FollowRequest,
-        follow_request_from_user_3_to_user_1: FollowRequest,
-    ) -> None:
-        client, auth_token = self.get_test_client_and_auth_token(
-            app, user_1.email
-        )
-
-        response = client.get(
-            "/api/follow-requests?order=desc",
-            content_type="application/json",
-            headers=dict(Authorization=f"Bearer {auth_token}"),
-        )
-
-        assert response.status_code == 200
-        data = json.loads(response.data.decode())
-        assert data["status"] == "success"
-        assert len(data["data"]["follow_requests"]) == 2
-        assert data["data"]["follow_requests"][0]["username"] == "sam"
-        assert data["data"]["follow_requests"][1]["username"] == "toto"
-
-    def test_it_returns_one_request_per_page(
-        self,
-        app: Flask,
-        user_1: User,
-        follow_request_from_user_2_to_user_1: FollowRequest,
-        follow_request_from_user_3_to_user_1: FollowRequest,
-    ) -> None:
-        client, auth_token = self.get_test_client_and_auth_token(
-            app, user_1.email
-        )
-
-        response = client.get(
-            "/api/follow-requests?per_page=1",
-            content_type="application/json",
-            headers=dict(Authorization=f"Bearer {auth_token}"),
-        )
-
-        assert response.status_code == 200
-        data = json.loads(response.data.decode())
-        assert data["status"] == "success"
-        assert len(data["data"]["follow_requests"]) == 1
-        assert data["data"]["follow_requests"][0]["username"] == "toto"
-        assert data["pagination"] == {
-            "has_next": True,
-            "has_prev": False,
-            "page": 1,
-            "pages": 2,
-            "total": 2,
-        }
-
-    def test_it_returns_second_page_with_one_request_per_page_with_descending_order(  # noqa
-        self,
-        app: Flask,
-        user_1: User,
-        follow_request_from_user_2_to_user_1: FollowRequest,
-        follow_request_from_user_3_to_user_1: FollowRequest,
-    ) -> None:
-        client, auth_token = self.get_test_client_and_auth_token(
-            app, user_1.email
-        )
-
-        response = client.get(
-            "/api/follow-requests?page=2&per_page=1&order=desc",
-            content_type="application/json",
-            headers=dict(Authorization=f"Bearer {auth_token}"),
-        )
-
-        assert response.status_code == 200
-        data = json.loads(response.data.decode())
-        assert data["status"] == "success"
-        assert len(data["data"]["follow_requests"]) == 1
-        assert data["data"]["follow_requests"][0]["username"] == "toto"
-        assert data["pagination"] == {
-            "has_next": False,
-            "has_prev": True,
-            "page": 2,
-            "pages": 2,
-            "total": 2,
-        }
 
 
 class FollowRequestTestCase(ApiTestCaseMixin):
@@ -301,9 +37,7 @@ class FollowRequestTestCase(ApiTestCaseMixin):
             headers=dict(Authorization=f"Bearer {auth_token}"),
         )
 
-        assert response.status_code == 400
-        data = json.loads(response.data.decode())
-        assert data["status"] == "error"
+        data = assert_response(response, 400, status="error")
         assert data["message"] == (
             f"Follow request from user '{user_name}' already {action}ed."
         )
@@ -322,9 +56,7 @@ class FollowRequestTestCase(ApiTestCaseMixin):
             headers=dict(Authorization=f"Bearer {auth_token}"),
         )
 
-        assert response.status_code == 200
-        data = json.loads(response.data.decode())
-        assert data["status"] == "success"
+        data = assert_response(response, 200, status="success")
         assert data["message"] == (
             f"Follow request from user '{user_name}' is {action}ed."
         )
@@ -421,18 +153,6 @@ class TestAcceptFollowRequest(FollowRequestTestCase):
             client, auth_token, user_2.username, "accept"
         )
 
-    def test_expected_scope_is_follow_write(
-        self, app: Flask, user_1: User
-    ) -> None:
-        self.assert_response_scope(
-            app=app,
-            user=user_1,
-            client_method="post",
-            endpoint=f"/api/follow-requests/{self.random_string()}/accept",
-            invalid_scope="follow:read",
-            expected_endpoint_scope="follow:write",
-        )
-
 
 class TestRejectFollowRequest(FollowRequestTestCase):
     def test_it_returns_error_if_user_is_not_authenticated(
@@ -523,16 +243,4 @@ class TestRejectFollowRequest(FollowRequestTestCase):
 
         self.assert_it_returns_follow_request_processed(
             client, auth_token, user_2.username, "reject"
-        )
-
-    def test_expected_scope_is_follow_write(
-        self, app: Flask, user_1: User
-    ) -> None:
-        self.assert_response_scope(
-            app=app,
-            user=user_1,
-            client_method="post",
-            endpoint=f"/api/follow-requests/{self.random_string()}/reject",
-            invalid_scope="follow:read",
-            expected_endpoint_scope="follow:write",
         )

@@ -1,63 +1,48 @@
 import { createI18n } from 'vue-i18n'
+import type { DefineLocaleMessage } from 'vue-i18n'
 
-// import beMessages from '@/locales/be/be'
-import bgMessages from '@/locales/bg/bg'
-// import bnMessages from '@/locales/bn/bn'
-import caMessages from '@/locales/ca/ca'
-import csMessages from '@/locales/cs/cs'
-// import daMessages from '@/locales/da/da'
-import deMessages from '@/locales/de/de'
 import enMessages from '@/locales/en/en'
-import esMessages from '@/locales/es/es'
-import euMessages from '@/locales/eu/eu'
-// import fiMessages from '@/locales/fi/fi'
-import frMessages from '@/locales/fr/fr'
-import glMessages from '@/locales/gl/gl'
-import hrMessages from '@/locales/hr/hr'
-import itMessages from '@/locales/it/it'
-import kabMessages from '@/locales/kab/kab'
-import nbMessages from '@/locales/nb/nb'
-import nlMessages from '@/locales/nl/nl'
-import plMessages from '@/locales/pl/pl'
-import ptMessages from '@/locales/pt/pt'
-import ruMessages from '@/locales/ru/ru'
-// import slMessages from '@/locales/sl/sl'
-// import svMessages from '@/locales/sv/sv'
-// import taMessages from '@/locales/ta/ta'
-import trMessages from '@/locales/tr/tr'
-import zhHansMessages from '@/locales/zh_Hans/zh_Hans'
+import type { TLanguage } from '@/types/locales'
 
-export default createI18n({
+const messages: Partial<Record<TLanguage, DefineLocaleMessage>> = {
+  en: enMessages,
+}
+const i18n = createI18n({
   legacy: false,
-  locale: 'en',
+  locale: 'en' as TLanguage,
   fallbackLocale: 'en',
   globalInjection: true,
-  messages: {
-    // be: beMessages,
-    bg: bgMessages,
-    // bn: bnMessages,
-    ca: caMessages,
-    cs: csMessages,
-    // da: daMessages,
-    de: deMessages,
-    en: enMessages,
-    es: esMessages,
-    eu: euMessages,
-    // fi: fiMessages,
-    fr: frMessages,
-    gl: glMessages,
-    hr: hrMessages,
-    it: itMessages,
-    kab: kabMessages,
-    nb: nbMessages,
-    nl: nlMessages,
-    pl: plMessages,
-    pt: ptMessages,
-    ru: ruMessages,
-    // sl: slMessages,
-    // sv: svMessages,
-    // ta: taMessages,
-    tr: trMessages,
-    zh_Hans: zhHansMessages,
-  },
+  messages,
 })
+
+const loaders = import.meta.glob<{ default: DefineLocaleMessage }>(
+  [
+    './locales/*/*.ts',
+    // Keep disabled translations in source without shipping unused chunks.
+    '!./locales/{en,be,bn,da,fi,sl,sv,ta}/*.ts',
+  ]
+)
+const pending = new Map<TLanguage, Promise<void>>()
+let selection = 0
+
+/** Load once per language; a slow earlier selection cannot replace a newer one. */
+export const activateLanguage = async (language: TLanguage): Promise<boolean> => {
+  const current = ++selection
+  if (!i18n.global.availableLocales.includes(language)) {
+    let loading = pending.get(language)
+    if (!loading) {
+      const load = loaders[`./locales/${language}/${language}.ts`]
+      if (!load) throw new Error(`Unsupported language: ${language}`)
+      loading = load()
+        .then((module) => i18n.global.setLocaleMessage(language, module.default))
+        .finally(() => pending.delete(language))
+      pending.set(language, loading)
+    }
+    await loading
+  }
+  if (current !== selection) return false
+  i18n.global.locale.value = language
+  return true
+}
+
+export default i18n

@@ -7,16 +7,7 @@ import {
   ROOT_STORE,
   SPORTS_STORE,
 } from '@/store/constants'
-import type { IAuthUserState } from '@/store/modules/authUser/types'
-import type { IEquipmentTypesState } from '@/store/modules/equipments/types'
-import type { INotificationsState } from '@/store/modules/notifications/types'
-import type { IOAuth2State } from '@/store/modules/oauth2/types'
-import type { IReportsState } from '@/store/modules/reports/types'
 import type { IRootState } from '@/store/modules/root/types'
-import type { ISportsState } from '@/store/modules/sports/types'
-import type { IStatisticsState } from '@/store/modules/statistics/types'
-import type { IUsersState } from '@/store/modules/users/types'
-import type { IWorkoutsState } from '@/store/modules/workouts/types'
 import type { IApiErrorMessage } from '@/types/api'
 import type {
   IEquipment,
@@ -25,6 +16,11 @@ import type {
 } from '@/types/equipments'
 import type { ISport } from '@/types/sports.ts'
 
+export type ApiContext = Pick<
+  ActionContext<unknown, IRootState>,
+  'commit' | 'dispatch' | 'getters'
+>
+
 export const getApiUrl = (): string => {
   return import.meta.env.PROD
     ? '/api/'
@@ -32,17 +28,7 @@ export const getApiUrl = (): string => {
 }
 
 export const handleError = (
-  context:
-    | ActionContext<IRootState, IRootState>
-    | ActionContext<IAuthUserState, IRootState>
-    | ActionContext<IEquipmentTypesState, IRootState>
-    | ActionContext<INotificationsState, IRootState>
-    | ActionContext<IReportsState, IRootState>
-    | ActionContext<IOAuth2State, IRootState>
-    | ActionContext<IStatisticsState, IRootState>
-    | ActionContext<ISportsState, IRootState>
-    | ActionContext<IUsersState, IRootState>
-    | ActionContext<IWorkoutsState, IRootState>,
+  context: ApiContext,
   error: AxiosError | null,
   msg = 'UNKNOWN'
 ): void => {
@@ -108,20 +94,7 @@ export const handleError = (
   )
 }
 
-const getEquipmentError = (
-  error: AxiosError | null,
-  context:
-    | ActionContext<IRootState, IRootState>
-    | ActionContext<IAuthUserState, IRootState>
-    | ActionContext<IEquipmentTypesState, IRootState>
-    | ActionContext<INotificationsState, IRootState>
-    | ActionContext<IReportsState, IRootState>
-    | ActionContext<IOAuth2State, IRootState>
-    | ActionContext<IStatisticsState, IRootState>
-    | ActionContext<ISportsState, IRootState>
-    | ActionContext<IUsersState, IRootState>
-    | ActionContext<IWorkoutsState, IRootState>
-) => {
+const getEquipmentError = (error: AxiosError | null, context: ApiContext) => {
   if (error?.response?.data) {
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore
@@ -142,17 +115,7 @@ const getEquipmentError = (
 
 const getMiscEquipmentError = (
   error: AxiosError | null,
-  context:
-    | ActionContext<IRootState, IRootState>
-    | ActionContext<IAuthUserState, IRootState>
-    | ActionContext<IEquipmentTypesState, IRootState>
-    | ActionContext<INotificationsState, IRootState>
-    | ActionContext<IReportsState, IRootState>
-    | ActionContext<IOAuth2State, IRootState>
-    | ActionContext<IStatisticsState, IRootState>
-    | ActionContext<ISportsState, IRootState>
-    | ActionContext<IUsersState, IRootState>
-    | ActionContext<IWorkoutsState, IRootState>
+  context: ApiContext
 ): IMiscEquipmentError | null => {
   if (error?.response?.data) {
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment

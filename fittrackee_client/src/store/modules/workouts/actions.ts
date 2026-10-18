@@ -14,6 +14,7 @@ import type {
   IWorkoutsActions,
   IWorkoutsState,
 } from '@/store/modules/workouts/types'
+import { handleApiRequest } from '@/store/request'
 import type {
   ICommentForm,
   IWorkout,
@@ -39,39 +40,36 @@ const getWorkouts = (
   target: WorkoutsMutations
 ): void => {
   context.commit(ROOT_STORE.MUTATIONS.EMPTY_ERROR_MESSAGES)
-  authApi
-    .get(target.match('TIMELINE') ? 'timeline' : 'workouts', {
+  handleApiRequest(
+    context,
+    authApi.get(target.match('TIMELINE') ? 'timeline' : 'workouts', {
       params: {
         ...payload,
         ...(target === 'SET_USER_WORKOUTS' ? { with_statistics: true } : {}),
       },
-    })
-    .then((res) => {
-      if (res.data.status === 'success') {
-        context.commit(WORKOUTS_STORE.MUTATIONS[target], res.data.data.workouts)
-        if (
-          [
-            WorkoutsMutations['SET_USER_WORKOUTS'],
-            WorkoutsMutations['SET_TIMELINE_WORKOUTS'],
-            WorkoutsMutations['ADD_TIMELINE_WORKOUTS'],
-          ].includes(target)
-        ) {
-          context.commit(
-            WORKOUTS_STORE.MUTATIONS.SET_WORKOUTS_PAGINATION,
-            res.data.pagination
-          )
-        }
-        if (target === WorkoutsMutations['SET_USER_WORKOUTS']) {
-          context.commit(
-            WORKOUTS_STORE.MUTATIONS.SET_WORKOUTS_STATISTICS,
-            res.data.data.statistics
-          )
-        }
-      } else {
-        handleError(context, null)
+    }),
+    (data) => {
+      context.commit(WORKOUTS_STORE.MUTATIONS[target], data.data.workouts)
+      if (
+        [
+          WorkoutsMutations['SET_USER_WORKOUTS'],
+          WorkoutsMutations['SET_TIMELINE_WORKOUTS'],
+          WorkoutsMutations['ADD_TIMELINE_WORKOUTS'],
+        ].includes(target)
+      ) {
+        context.commit(
+          WORKOUTS_STORE.MUTATIONS.SET_WORKOUTS_PAGINATION,
+          data.pagination
+        )
       }
-    })
-    .catch((error) => handleError(context, error))
+      if (target === WorkoutsMutations['SET_USER_WORKOUTS']) {
+        context.commit(
+          WORKOUTS_STORE.MUTATIONS.SET_WORKOUTS_STATISTICS,
+          data.data.statistics
+        )
+      }
+    }
+  )
 }
 
 const reloadComment = (
@@ -144,28 +142,24 @@ export const actions: ActionTree<IWorkoutsState, IRootState> &
   ): void {
     context.commit(ROOT_STORE.MUTATIONS.EMPTY_ERROR_MESSAGES)
     context.commit(WORKOUTS_STORE.MUTATIONS.SET_MAP_LOADING, true)
-    authApi
-      .get('workouts/collection', {
+    handleApiRequest(
+      context,
+      authApi.get('workouts/collection', {
         params: payload,
-      })
-      .then((res) => {
-        if (res.data.status === 'success') {
-          context.commit(
-            WORKOUTS_STORE.MUTATIONS.SET_USER_WORKOUTS_COLLECTION,
-            res.data.data
-          )
-          context.commit(
-            WORKOUTS_STORE.MUTATIONS.SET_WORKOUTS_PAGINATION,
-            res.data.pagination
-          )
-        } else {
-          handleError(context, null)
-        }
-      })
-      .catch((error) => handleError(context, error))
-      .finally(() =>
-        context.commit(WORKOUTS_STORE.MUTATIONS.SET_MAP_LOADING, false)
-      )
+      }),
+      (data) => {
+        context.commit(
+          WORKOUTS_STORE.MUTATIONS.SET_USER_WORKOUTS_COLLECTION,
+          data.data
+        )
+        context.commit(
+          WORKOUTS_STORE.MUTATIONS.SET_WORKOUTS_PAGINATION,
+          data.pagination
+        )
+      }
+    ).finally(() =>
+      context.commit(WORKOUTS_STORE.MUTATIONS.SET_MAP_LOADING, false)
+    )
   },
   [WORKOUTS_STORE.ACTIONS.GET_AUTH_USER_WORKOUTS_FOR_GLOBAl_MAP](
     context: ActionContext<IWorkoutsState, IRootState>,
@@ -173,24 +167,20 @@ export const actions: ActionTree<IWorkoutsState, IRootState> &
   ): void {
     context.commit(ROOT_STORE.MUTATIONS.EMPTY_ERROR_MESSAGES)
     context.commit(WORKOUTS_STORE.MUTATIONS.SET_MAP_LOADING, true)
-    authApi
-      .get(`workouts/global-map`, {
+    handleApiRequest(
+      context,
+      authApi.get(`workouts/global-map`, {
         params: payload,
-      })
-      .then((res) => {
-        if (res.data.status === 'success') {
-          context.commit(
-            WORKOUTS_STORE.MUTATIONS.SET_USER_WORKOUTS_COLLECTION,
-            res.data.data
-          )
-        } else {
-          handleError(context, null)
-        }
-      })
-      .catch((error) => handleError(context, error))
-      .finally(() =>
-        context.commit(WORKOUTS_STORE.MUTATIONS.SET_MAP_LOADING, false)
-      )
+      }),
+      (data) => {
+        context.commit(
+          WORKOUTS_STORE.MUTATIONS.SET_USER_WORKOUTS_COLLECTION,
+          data.data
+        )
+      }
+    ).finally(() =>
+      context.commit(WORKOUTS_STORE.MUTATIONS.SET_MAP_LOADING, false)
+    )
   },
   [WORKOUTS_STORE.ACTIONS.GET_TIMELINE_WORKOUTS](
     context: ActionContext<IWorkoutsState, IRootState>,
@@ -477,24 +467,14 @@ export const actions: ActionTree<IWorkoutsState, IRootState> &
   ): void {
     context.commit(WORKOUTS_STORE.MUTATIONS.SET_COMMENT_LOADING, 'loading')
     context.commit(ROOT_STORE.MUTATIONS.EMPTY_ERROR_MESSAGES)
-    authApi
-      .get(`/comments/${commentId}`)
-      .then((res) => {
-        if (res.data.status === 'success') {
-          context.commit(WORKOUTS_STORE.MUTATIONS.SET_WORKOUT_COMMENTS, [
-            res.data.comment,
-          ])
-          context.commit(WORKOUTS_STORE.MUTATIONS.SET_COMMENT_LOADING, null)
-        } else {
-          handleError(context, null)
-        }
-      })
-      .catch((error) => {
-        handleError(context, error)
-      })
-      .finally(() =>
-        context.commit(WORKOUTS_STORE.MUTATIONS.SET_COMMENT_LOADING, null)
-      )
+    handleApiRequest(context, authApi.get(`/comments/${commentId}`), (data) => {
+      context.commit(WORKOUTS_STORE.MUTATIONS.SET_WORKOUT_COMMENTS, [
+        data.comment,
+      ])
+      context.commit(WORKOUTS_STORE.MUTATIONS.SET_COMMENT_LOADING, null)
+    }).finally(() =>
+      context.commit(WORKOUTS_STORE.MUTATIONS.SET_COMMENT_LOADING, null)
+    )
   },
   [WORKOUTS_STORE.ACTIONS.GET_WORKOUT_COMMENTS](
     context: ActionContext<IWorkoutsState, IRootState>,

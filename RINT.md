@@ -199,6 +199,21 @@ duplicate rules, background timing, and device validation.
 
 ## Validation
 
+Run the compact backend, core, tooling and web suite:
+
+```sh
+source .local/env
+.venv/bin/pytest fittrackee/tests tests_rint scripts/tests -q
+python3 scripts/rint-test-footprint.py
+npm --prefix fittrackee_client run lint-check
+npm --prefix fittrackee_client run test:unit -- --run
+npm --prefix fittrackee_client run build
+```
+
+Core integration tests remain opt-in below. The backend suite uses the isolated
+`rint_test` database. See [TESTING.md](TESTING.md) for retained coverage and the
+lower-priority regression coverage deliberately removed from the inherited suite.
+
 See [architecture/upstream alignment](RINT_ARCHITECTURE.md),
 [calculation methods](RINT_METRICS.md), [validation results](RINT_VALIDATION.md)
 and [device testing](apple/DEVICE_TESTING.md).
@@ -211,7 +226,7 @@ are separate from physical-device evidence.
 
 ```sh
 source .local/env
-RINT_INTEGRATION=1 .venv/bin/pytest tests_rint -q
+DATABASE_URL="$DATABASE_TEST_URL" RINT_INTEGRATION=1 .venv/bin/pytest tests_rint -q
 .venv/bin/ruff check rint_core fittrackee/rint tests_rint
 .venv/bin/mypy rint_core fittrackee/rint --follow-imports=silent
 npm --prefix fittrackee_client run build

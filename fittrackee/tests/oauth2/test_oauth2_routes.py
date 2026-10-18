@@ -14,6 +14,7 @@ from fittrackee.oauth2.models import (
     OAuth2Client,
     OAuth2Token,
 )
+from fittrackee.tests.custom_asserts import assert_response
 from fittrackee.users.models import User
 
 from ..mixins import ApiTestCaseMixin
@@ -976,9 +977,7 @@ class TestOAuthGetClients(ApiTestCaseMixin):
             headers=dict(Authorization=f"Bearer {auth_token}"),
         )
 
-        assert response.status_code == 200
-        data = json.loads(response.data.decode())
-        assert data["status"] == "success"
+        data = assert_response(response, 200, status="success")
         assert data["data"]["clients"] == []
 
     def test_it_returns_apps_when_user_is_suspended(
@@ -1085,9 +1084,7 @@ class TestOAuthGetClients(ApiTestCaseMixin):
             headers=dict(Authorization=f"Bearer {auth_token}"),
         )
 
-        assert response.status_code == 200
-        data = json.loads(response.data.decode())
-        assert data["status"] == "success"
+        data = assert_response(response, 200, status="success")
         assert data["data"]["clients"] == []
 
 
@@ -1521,9 +1518,7 @@ class TestOAuthRevokeClientToken(ApiTestCaseMixin):
             headers=dict(Authorization=f"Bearer {auth_token}"),
         )
 
-        assert response.status_code == 200
-        data = json.loads(response.data.decode())
-        assert data["status"] == "success"
+        assert_response(response, 200, status="success")
         for token in tokens:
             assert token.is_revoked()
 
@@ -1542,9 +1537,7 @@ class TestOAuthRevokeClientToken(ApiTestCaseMixin):
             headers=dict(Authorization=f"Bearer {auth_token}"),
         )
 
-        assert response.status_code == 200
-        data = json.loads(response.data.decode())
-        assert data["status"] == "success"
+        assert_response(response, 200, status="success")
         assert token.is_revoked()
 
     def test_it_does_not_revoke_another_client_token(

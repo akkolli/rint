@@ -32,34 +32,7 @@ import type { TLanguage } from '@/types/locales'
 export const isLanguageSupported = (
   language: string
 ): language is TLanguage => {
-  return [
-    // 'be',
-    'bg',
-    // 'bn',
-    'ca',
-    'cs',
-    // 'da',
-    'de',
-    'en',
-    'es',
-    'eu',
-    // 'fi',
-    'fr',
-    'gl',
-    'hr',
-    'it',
-    // 'kab',
-    'nb',
-    'nl',
-    'pl',
-    'pt',
-    'ru',
-    // 'sl',
-    // 'ta',
-    'tr',
-    // 'sv',
-    'zh_Hans',
-  ].includes(language)
+  return Object.prototype.hasOwnProperty.call(languageLabels, language)
 }
 
 export const localeFromLanguage: Record<TLanguage, Locale> = {

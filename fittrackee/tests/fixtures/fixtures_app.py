@@ -134,26 +134,9 @@ def app(monkeypatch: pytest.MonkeyPatch) -> Generator:
 
 
 @pytest.fixture
-def app_default_static_map(monkeypatch: pytest.MonkeyPatch) -> Generator:
-    monkeypatch.setenv(
-        "TILE_SERVER_URL", "https://tile.openstreetmap.de/{z}/{x}/{y}.png"
-    )
-    monkeypatch.setenv("DEFAULT_STATICMAP", "True")
-    yield from get_app(with_config=True)
-
-
-@pytest.fixture
 def app_with_max_workouts(monkeypatch: pytest.MonkeyPatch) -> Generator:
     monkeypatch.setenv("EMAIL_URL", "smtp://none:none@0.0.0.0:1025")
     yield from get_app(with_config=True, max_sync_workouts=1, max_workouts=2)
-
-
-@pytest.fixture
-def app_with_max_file_size_equals_0(
-    monkeypatch: pytest.MonkeyPatch,
-) -> Generator:
-    monkeypatch.setenv("EMAIL_URL", "smtp://none:none@0.0.0.0:1025")
-    yield from get_app(with_config=True, max_single_file_size=0)
 
 
 @pytest.fixture
@@ -174,17 +157,6 @@ def app_with_max_image_size(
 ) -> Generator:
     monkeypatch.setenv("EMAIL_URL", "smtp://none:none@0.0.0.0:1025")
     yield from get_app(with_config=True, max_image_size=0.001)
-
-
-@pytest.fixture
-def app_with_3_users_max(monkeypatch: pytest.MonkeyPatch) -> Generator:
-    monkeypatch.setenv("EMAIL_URL", "smtp://none:none@0.0.0.0:1025")
-    yield from get_app(with_config=True, max_users=3)
-
-
-@pytest.fixture
-def app_no_config(monkeypatch: pytest.MonkeyPatch) -> Generator:
-    yield from get_app(with_config=False)
 
 
 @pytest.fixture
@@ -213,74 +185,3 @@ def app_wo_email_auth(monkeypatch: pytest.MonkeyPatch) -> Generator:
 def app_wo_email_activation(monkeypatch: pytest.MonkeyPatch) -> Generator:
     monkeypatch.setenv("EMAIL_URL", "")
     yield from get_app(with_config=True)
-
-
-@pytest.fixture
-def app_with_nominatim_url(monkeypatch: pytest.MonkeyPatch) -> Generator:
-    monkeypatch.setenv("NOMINATIM_URL", "https://nominatim.example.com")
-    yield from get_app(with_config=True)
-
-
-@pytest.fixture
-def app_with_open_elevation_url(monkeypatch: pytest.MonkeyPatch) -> Generator:
-    monkeypatch.setenv(
-        "OPEN_ELEVATION_API_URL", "https://api.open-elevation.example.com"
-    )
-    if os.getenv("VALHALLA_API_URL"):
-        monkeypatch.delenv("VALHALLA_API_URL")
-    yield from get_app(with_config=True)
-
-
-@pytest.fixture
-def app_with_valhalla_url(monkeypatch: pytest.MonkeyPatch) -> Generator:
-    monkeypatch.setenv("VALHALLA_API_URL", "https://api.valhalla.example.com")
-    if os.getenv("OPEN_ELEVATION_API_URL"):
-        monkeypatch.delenv("OPEN_ELEVATION_API_URL")
-    yield from get_app(with_config=True)
-
-
-@pytest.fixture
-def app_with_open_elevation_and_valhalla_url(
-    monkeypatch: pytest.MonkeyPatch,
-) -> Generator:
-    monkeypatch.setenv(
-        "OPEN_ELEVATION_API_URL", "https://api.open-elevation.example.com"
-    )
-    monkeypatch.setenv("VALHALLA_API_URL", "https://api.valhalla.example.com")
-    yield from get_app(with_config=True)
-
-
-@pytest.fixture
-def app_with_empty_string_as_open_elevation_and_valhalla_url(
-    monkeypatch: pytest.MonkeyPatch,
-) -> Generator:
-    monkeypatch.setenv("OPEN_ELEVATION_API_URL", "")
-    monkeypatch.setenv("VALHALLA_API_URL", "")
-    yield from get_app(with_config=True)
-
-
-@pytest.fixture
-def app_with_global_map_workouts_limit_equal_to_1(
-    monkeypatch: pytest.MonkeyPatch,
-) -> Generator:
-    yield from get_app(with_config=True, global_map_workouts_limit=1)
-
-
-@pytest.fixture
-def app_with_task_processing_disabled(
-    monkeypatch: pytest.MonkeyPatch,
-) -> Generator:
-    yield from get_app(with_config=True, tasks_processing_available=False)
-
-
-@pytest.fixture()
-def app_config() -> AppConfig:
-    config = AppConfig()
-    config.file_sync_limit_import = 10
-    config.file_limit_import = 100
-    config.max_single_file_size = 1048576
-    config.max_zip_file_size = 10485760
-    config.max_users = 0
-    db.session.add(config)
-    db.session.commit()
-    return config

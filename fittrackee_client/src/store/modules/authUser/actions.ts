@@ -20,6 +20,7 @@ import type {
 } from '@/store/modules/authUser/types'
 import type { IRootState } from '@/store/modules/root/types'
 import { deleteUserAccount } from '@/store/modules/users/actions'
+import { handleApiRequest } from '@/store/request'
 import type { IPagePayload } from '@/types/api'
 import type {
   TMessagePreferencesPayload,
@@ -88,23 +89,18 @@ export const actions: ActionTree<IAuthUserState, IRootState> &
     payload: IUserAccountUpdatePayload
   ): void {
     context.commit(ROOT_STORE.MUTATIONS.EMPTY_ERROR_MESSAGES)
-    api
-      .post('auth/account/confirm', { token: payload.token })
-      .then((res) => {
-        if (res.data.status === 'success') {
-          const token = res.data.auth_token
-          window.localStorage.setItem('authToken', token)
-          context.commit(AUTH_USER_STORE.MUTATIONS.UPDATE_AUTH_TOKEN, token)
-          context
-            .dispatch(AUTH_USER_STORE.ACTIONS.GET_USER_PROFILE, {})
-            .then(() => router.push('/'))
-        } else {
-          handleError(context, null)
-        }
-      })
-      .catch((error) => {
-        handleError(context, error)
-      })
+    handleApiRequest(
+      context,
+      api.post('auth/account/confirm', { token: payload.token }),
+      (data) => {
+        const token = data.auth_token
+        window.localStorage.setItem('authToken', token)
+        context.commit(AUTH_USER_STORE.MUTATIONS.UPDATE_AUTH_TOKEN, token)
+        context
+          .dispatch(AUTH_USER_STORE.ACTIONS.GET_USER_PROFILE, {})
+          .then(() => router.push('/'))
+      }
+    )
   },
   [AUTH_USER_STORE.ACTIONS.CONFIRM_EMAIL](
     context: ActionContext<IAuthUserState, IRootState>,
@@ -112,26 +108,21 @@ export const actions: ActionTree<IAuthUserState, IRootState> &
   ): void {
     context.commit(ROOT_STORE.MUTATIONS.EMPTY_ERROR_MESSAGES)
     context.commit(AUTH_USER_STORE.MUTATIONS.UPDATE_IS_SUCCESS, false)
-    api
-      .post('/auth/email/update', { token: payload.token })
-      .then((res) => {
-        if (res.data.status === 'success') {
-          context.commit(AUTH_USER_STORE.MUTATIONS.UPDATE_IS_SUCCESS, true)
-          if (payload.refreshUser) {
-            context
-              .dispatch(AUTH_USER_STORE.ACTIONS.GET_USER_PROFILE, {})
-              .then(() => {
-                return router.push('/profile/edit/account')
-              })
-          }
-          router.push('/profile/edit/account')
-        } else {
-          handleError(context, null)
+    handleApiRequest(
+      context,
+      api.post('/auth/email/update', { token: payload.token }),
+      () => {
+        context.commit(AUTH_USER_STORE.MUTATIONS.UPDATE_IS_SUCCESS, true)
+        if (payload.refreshUser) {
+          context
+            .dispatch(AUTH_USER_STORE.ACTIONS.GET_USER_PROFILE, {})
+            .then(() => {
+              return router.push('/profile/edit/account')
+            })
         }
-      })
-      .catch((error) => {
-        handleError(context, error)
-      })
+        router.push('/profile/edit/account')
+      }
+    )
   },
   [AUTH_USER_STORE.ACTIONS.GET_USER_PROFILE](
     context: ActionContext<IAuthUserState, IRootState>,
@@ -204,26 +195,18 @@ export const actions: ActionTree<IAuthUserState, IRootState> &
   ): void {
     context.commit(ROOT_STORE.MUTATIONS.EMPTY_ERROR_MESSAGES)
     context.commit(AUTH_USER_STORE.MUTATIONS.UPDATE_USER_LOADING, true)
-    authApi
-      .get('auth/account/suspension')
-      .then((res) => {
-        if (res.data.status === 'success') {
-          context.commit(
-            AUTH_USER_STORE.MUTATIONS.SET_ACCOUNT_SUSPENSION,
-            res.data.user_suspension
-          )
-        } else {
-          handleError(context, null)
-        }
-      })
-      .catch((error) => {
-        if (error.message !== 'canceled') {
-          handleError(context, error)
-        }
-      })
-      .finally(() =>
-        context.commit(AUTH_USER_STORE.MUTATIONS.UPDATE_USER_LOADING, false)
-      )
+    handleApiRequest(
+      context,
+      authApi.get('auth/account/suspension'),
+      (data) => {
+        context.commit(
+          AUTH_USER_STORE.MUTATIONS.SET_ACCOUNT_SUSPENSION,
+          data.user_suspension
+        )
+      }
+    ).finally(() =>
+      context.commit(AUTH_USER_STORE.MUTATIONS.UPDATE_USER_LOADING, false)
+    )
   },
   [AUTH_USER_STORE.ACTIONS.GET_FOLLOW_REQUESTS](
     context: ActionContext<IAuthUserState, IRootState>,
@@ -231,28 +214,22 @@ export const actions: ActionTree<IAuthUserState, IRootState> &
   ): void {
     context.commit(ROOT_STORE.MUTATIONS.EMPTY_ERROR_MESSAGES)
     context.commit(AUTH_USER_STORE.MUTATIONS.UPDATE_USER_LOADING, true)
-    authApi
-      .get('follow-requests', { params: payload })
-      .then((res) => {
-        if (res.data.status === 'success') {
-          context.commit(
-            AUTH_USER_STORE.MUTATIONS.UPDATE_FOLLOW_REQUESTS,
-            res.data.data.follow_requests
-          )
-          context.commit(
-            USERS_STORE.MUTATIONS.UPDATE_USERS_PAGINATION,
-            res.data.pagination
-          )
-        } else {
-          handleError(context, null)
-        }
-      })
-      .catch((error) => {
-        handleError(context, error)
-      })
-      .finally(() =>
-        context.commit(AUTH_USER_STORE.MUTATIONS.UPDATE_USER_LOADING, false)
-      )
+    handleApiRequest(
+      context,
+      authApi.get('follow-requests', { params: payload }),
+      (data) => {
+        context.commit(
+          AUTH_USER_STORE.MUTATIONS.UPDATE_FOLLOW_REQUESTS,
+          data.data.follow_requests
+        )
+        context.commit(
+          USERS_STORE.MUTATIONS.UPDATE_USERS_PAGINATION,
+          data.pagination
+        )
+      }
+    ).finally(() =>
+      context.commit(AUTH_USER_STORE.MUTATIONS.UPDATE_USER_LOADING, false)
+    )
   },
   [AUTH_USER_STORE.ACTIONS.LOGIN_OR_REGISTER](
     context: ActionContext<IAuthUserState, IRootState>,
@@ -263,53 +240,43 @@ export const actions: ActionTree<IAuthUserState, IRootState> &
       AUTH_USER_STORE.MUTATIONS.UPDATE_IS_REGISTRATION_SUCCESS,
       false
     )
-    api
-      .post(`/auth/${data.actionType}`, data.formData)
-      .then((res) => {
-        if (res.data.status === 'success') {
-          if (data.actionType === 'login') {
-            const token = res.data.auth_token
-            window.localStorage.setItem('authToken', token)
-            context.commit(AUTH_USER_STORE.MUTATIONS.UPDATE_AUTH_TOKEN, token)
-            context
-              .dispatch(AUTH_USER_STORE.ACTIONS.GET_USER_PROFILE, {
-                updateUI: true,
-              })
-              .then(() =>
-                router.push(
-                  typeof data.redirectUrl === 'string' ? data.redirectUrl : '/'
-                )
+    handleApiRequest(
+      context,
+      api.post(`/auth/${data.actionType}`, data.formData),
+      (result) => {
+        if (data.actionType === 'login') {
+          const token = result.auth_token
+          window.localStorage.setItem('authToken', token)
+          context.commit(AUTH_USER_STORE.MUTATIONS.UPDATE_AUTH_TOKEN, token)
+          context
+            .dispatch(AUTH_USER_STORE.ACTIONS.GET_USER_PROFILE, {
+              updateUI: true,
+            })
+            .then(() =>
+              router.push(
+                typeof data.redirectUrl === 'string' ? data.redirectUrl : '/'
               )
-          } else {
-            router
-              .push('/login')
-              .then(() =>
-                context.commit(
-                  AUTH_USER_STORE.MUTATIONS.UPDATE_IS_REGISTRATION_SUCCESS,
-                  true
-                )
-              )
-          }
+            )
         } else {
-          handleError(context, null)
+          router
+            .push('/login')
+            .then(() =>
+              context.commit(
+                AUTH_USER_STORE.MUTATIONS.UPDATE_IS_REGISTRATION_SUCCESS,
+                true
+              )
+            )
         }
-      })
-      .catch((error) => handleError(context, error))
+      }
+    )
   },
   [AUTH_USER_STORE.ACTIONS.LOGOUT](
     context: ActionContext<IAuthUserState, IRootState>
   ): void {
     context.commit(ROOT_STORE.MUTATIONS.EMPTY_ERROR_MESSAGES)
-    authApi
-      .post('auth/logout')
-      .then((res) => {
-        if (res.data.status === 'success') {
-          removeAuthUserData(context)
-        } else {
-          handleError(context, null)
-        }
-      })
-      .catch((error) => handleError(context, error))
+    handleApiRequest(context, authApi.post('auth/logout'), () => {
+      removeAuthUserData(context)
+    })
   },
   [AUTH_USER_STORE.ACTIONS.APPEAL](
     context: ActionContext<IAuthUserState, IRootState>,
@@ -322,23 +289,15 @@ export const actions: ActionTree<IAuthUserState, IRootState> &
       appealPayload.actionType === 'user_suspension'
         ? 'auth/account/suspension/appeal'
         : `auth/account/sanctions/${appealPayload.actionId}/appeal`
-    authApi
-      .post(url, { text: appealPayload.text })
-      .then((res) => {
-        if (res.data.status === 'success') {
-          context.commit(AUTH_USER_STORE.MUTATIONS.UPDATE_IS_SUCCESS, true)
-        } else {
-          handleError(context, null)
-        }
-      })
-      .catch((error) => {
-        if (error.message !== 'canceled') {
-          handleError(context, error)
-        }
-      })
-      .finally(() =>
-        context.commit(AUTH_USER_STORE.MUTATIONS.UPDATE_USER_LOADING, false)
-      )
+    handleApiRequest(
+      context,
+      authApi.post(url, { text: appealPayload.text }),
+      () => {
+        context.commit(AUTH_USER_STORE.MUTATIONS.UPDATE_IS_SUCCESS, true)
+      }
+    ).finally(() =>
+      context.commit(AUTH_USER_STORE.MUTATIONS.UPDATE_USER_LOADING, false)
+    )
   },
   [AUTH_USER_STORE.ACTIONS.UPDATE_FOLLOW_REQUESTS](
     context: ActionContext<IAuthUserState, IRootState>,
@@ -376,23 +335,19 @@ export const actions: ActionTree<IAuthUserState, IRootState> &
   ): void {
     context.commit(ROOT_STORE.MUTATIONS.EMPTY_ERROR_MESSAGES)
     context.commit(AUTH_USER_STORE.MUTATIONS.UPDATE_USER_LOADING, true)
-    authApi
-      .post('auth/profile/edit', payload)
-      .then((res) => {
-        if (res.data.status === 'success') {
-          context.commit(
-            AUTH_USER_STORE.MUTATIONS.UPDATE_AUTH_USER_PROFILE,
-            res.data.data
-          )
-          router.push('/profile')
-        } else {
-          handleError(context, null)
-        }
-      })
-      .catch((error) => handleError(context, error))
-      .finally(() =>
-        context.commit(AUTH_USER_STORE.MUTATIONS.UPDATE_USER_LOADING, false)
-      )
+    handleApiRequest(
+      context,
+      authApi.post('auth/profile/edit', payload),
+      (data) => {
+        context.commit(
+          AUTH_USER_STORE.MUTATIONS.UPDATE_AUTH_USER_PROFILE,
+          data.data
+        )
+        router.push('/profile')
+      }
+    ).finally(() =>
+      context.commit(AUTH_USER_STORE.MUTATIONS.UPDATE_USER_LOADING, false)
+    )
   },
   [AUTH_USER_STORE.ACTIONS.UPDATE_USER_ACCOUNT](
     context: ActionContext<IAuthUserState, IRootState>,
@@ -401,23 +356,19 @@ export const actions: ActionTree<IAuthUserState, IRootState> &
     context.commit(ROOT_STORE.MUTATIONS.EMPTY_ERROR_MESSAGES)
     context.commit(AUTH_USER_STORE.MUTATIONS.UPDATE_USER_LOADING, true)
     context.commit(AUTH_USER_STORE.MUTATIONS.UPDATE_IS_SUCCESS, false)
-    authApi
-      .patch('auth/profile/edit/account', payload)
-      .then((res) => {
-        if (res.data.status === 'success') {
-          context.commit(
-            AUTH_USER_STORE.MUTATIONS.UPDATE_AUTH_USER_PROFILE,
-            res.data.data
-          )
-          context.commit(AUTH_USER_STORE.MUTATIONS.UPDATE_IS_SUCCESS, true)
-        } else {
-          handleError(context, null)
-        }
-      })
-      .catch((error) => handleError(context, error))
-      .finally(() =>
-        context.commit(AUTH_USER_STORE.MUTATIONS.UPDATE_USER_LOADING, false)
-      )
+    handleApiRequest(
+      context,
+      authApi.patch('auth/profile/edit/account', payload),
+      (data) => {
+        context.commit(
+          AUTH_USER_STORE.MUTATIONS.UPDATE_AUTH_USER_PROFILE,
+          data.data
+        )
+        context.commit(AUTH_USER_STORE.MUTATIONS.UPDATE_IS_SUCCESS, true)
+      }
+    ).finally(() =>
+      context.commit(AUTH_USER_STORE.MUTATIONS.UPDATE_USER_LOADING, false)
+    )
   },
   [AUTH_USER_STORE.ACTIONS.UPDATE_USER_PREFERENCES](
     context: ActionContext<IAuthUserState, IRootState>,
@@ -425,36 +376,29 @@ export const actions: ActionTree<IAuthUserState, IRootState> &
   ): void {
     context.commit(ROOT_STORE.MUTATIONS.EMPTY_ERROR_MESSAGES)
     context.commit(AUTH_USER_STORE.MUTATIONS.UPDATE_USER_LOADING, true)
-    authApi
-      .post('auth/profile/edit/preferences', payload)
-      .then((res) => {
-        if (res.data.status === 'success') {
-          context.commit(
-            AUTH_USER_STORE.MUTATIONS.UPDATE_AUTH_USER_PROFILE,
-            res.data.data
+    handleApiRequest(
+      context,
+      authApi.post('auth/profile/edit/preferences', payload),
+      (data) => {
+        context.commit(
+          AUTH_USER_STORE.MUTATIONS.UPDATE_AUTH_USER_PROFILE,
+          data.data
+        )
+        context.commit(ROOT_STORE.MUTATIONS.UPDATE_DISPLAY_OPTIONS, data.data)
+        context.commit(
+          ROOT_STORE.MUTATIONS.UPDATE_DARK_MODE,
+          data.data.use_dark_mode
+        )
+        context
+          .dispatch(
+            ROOT_STORE.ACTIONS.UPDATE_APPLICATION_LANGUAGE,
+            data.data.language
           )
-          context.commit(
-            ROOT_STORE.MUTATIONS.UPDATE_DISPLAY_OPTIONS,
-            res.data.data
-          )
-          context.commit(
-            ROOT_STORE.MUTATIONS.UPDATE_DARK_MODE,
-            res.data.data.use_dark_mode
-          )
-          context
-            .dispatch(
-              ROOT_STORE.ACTIONS.UPDATE_APPLICATION_LANGUAGE,
-              res.data.data.language
-            )
-            .then(() => router.push('/profile/preferences'))
-        } else {
-          handleError(context, null)
-        }
-      })
-      .catch((error) => handleError(context, error))
-      .finally(() =>
-        context.commit(AUTH_USER_STORE.MUTATIONS.UPDATE_USER_LOADING, false)
-      )
+          .then(() => router.push('/profile/preferences'))
+      }
+    ).finally(() =>
+      context.commit(AUTH_USER_STORE.MUTATIONS.UPDATE_USER_LOADING, false)
+    )
   },
   [AUTH_USER_STORE.ACTIONS.RESET_USER_SPORT_PREFERENCES](
     context: ActionContext<IAuthUserState, IRootState>,
@@ -514,25 +458,21 @@ export const actions: ActionTree<IAuthUserState, IRootState> &
     }
     const form = new FormData()
     form.append('file', payload.picture)
-    authApi
-      .post('auth/picture', form, {
+    handleApiRequest(
+      context,
+      authApi.post('auth/picture', form, {
         headers: {
           'content-type': 'multipart/form-data',
         },
-      })
-      .then((res) => {
-        if (res.data.status === 'success') {
-          context
-            .dispatch(AUTH_USER_STORE.ACTIONS.GET_USER_PROFILE, {})
-            .then(() => router.push('/profile'))
-        } else {
-          handleError(context, null)
-        }
-      })
-      .catch((error) => handleError(context, error))
-      .finally(() =>
-        context.commit(AUTH_USER_STORE.MUTATIONS.UPDATE_USER_LOADING, false)
-      )
+      }),
+      () => {
+        context
+          .dispatch(AUTH_USER_STORE.ACTIONS.GET_USER_PROFILE, {})
+          .then(() => router.push('/profile'))
+      }
+    ).finally(() =>
+      context.commit(AUTH_USER_STORE.MUTATIONS.UPDATE_USER_LOADING, false)
+    )
   },
   [AUTH_USER_STORE.ACTIONS.DELETE_ACCOUNT](
     context: ActionContext<IAuthUserState, IRootState>,
@@ -566,104 +506,79 @@ export const actions: ActionTree<IAuthUserState, IRootState> &
     payload: IUserEmailPayload
   ): void {
     context.commit(ROOT_STORE.MUTATIONS.EMPTY_ERROR_MESSAGES)
-    api
-      .post('auth/password/reset-request', payload)
-      .then((res) => {
-        if (res.data.status === 'success') {
-          router.push('/password-reset/sent')
-        } else {
-          handleError(context, null)
-        }
-      })
-      .catch((error) => handleError(context, error))
+    handleApiRequest(
+      context,
+      api.post('auth/password/reset-request', payload),
+      () => {
+        router.push('/password-reset/sent')
+      }
+    )
   },
   [AUTH_USER_STORE.ACTIONS.RESEND_ACCOUNT_CONFIRMATION_EMAIL](
     context: ActionContext<IAuthUserState, IRootState>,
     payload: IUserEmailPayload
   ): void {
     context.commit(ROOT_STORE.MUTATIONS.EMPTY_ERROR_MESSAGES)
-    api
-      .post('auth/account/resend-confirmation', payload)
-      .then((res) => {
-        if (res.data.status === 'success') {
-          router.push('/account-confirmation/email-sent')
-        } else {
-          handleError(context, null)
-        }
-      })
-      .catch((error) => handleError(context, error))
+    handleApiRequest(
+      context,
+      api.post('auth/account/resend-confirmation', payload),
+      () => {
+        router.push('/account-confirmation/email-sent')
+      }
+    )
   },
   [AUTH_USER_STORE.ACTIONS.RESET_USER_PASSWORD](
     context: ActionContext<IAuthUserState, IRootState>,
     payload: IUserPasswordResetPayload
   ): void {
     context.commit(ROOT_STORE.MUTATIONS.EMPTY_ERROR_MESSAGES)
-    api
-      .post('auth/password/update', payload)
-      .then((res) => {
-        if (res.data.status === 'success') {
-          router.push('/password-reset/password-updated')
-        } else {
-          handleError(context, null)
-        }
-      })
-      .catch((error) => handleError(context, error))
+    handleApiRequest(
+      context,
+      api.post('auth/password/update', payload),
+      () => {
+        router.push('/password-reset/password-updated')
+      }
+    )
   },
   [AUTH_USER_STORE.ACTIONS.ACCEPT_PRIVACY_POLICY](
     context: ActionContext<IAuthUserState, IRootState>,
     acceptedPolicy: boolean
   ): void {
     context.commit(ROOT_STORE.MUTATIONS.EMPTY_ERROR_MESSAGES)
-    authApi
-      .post('auth/account/privacy-policy', {
+    handleApiRequest(
+      context,
+      authApi.post('auth/account/privacy-policy', {
         accepted_policy: acceptedPolicy,
-      })
-      .then((res) => {
-        if (res.data.status === 'success') {
-          context
-            .dispatch(AUTH_USER_STORE.ACTIONS.GET_USER_PROFILE, {})
-            .then(() => router.push('/profile'))
-        } else {
-          handleError(context, null)
-        }
-      })
-      .catch((error) => handleError(context, error))
+      }),
+      () => {
+        context
+          .dispatch(AUTH_USER_STORE.ACTIONS.GET_USER_PROFILE, {})
+          .then(() => router.push('/profile'))
+      }
+    )
   },
   [AUTH_USER_STORE.ACTIONS.REQUEST_DATA_EXPORT](
     context: ActionContext<IAuthUserState, IRootState>
   ): void {
     context.commit(ROOT_STORE.MUTATIONS.EMPTY_ERROR_MESSAGES)
-    authApi
-      .post('auth/account/export/request')
-      .then((res) => {
-        if (res.data.status === 'success') {
-          context.commit(
-            AUTH_USER_STORE.MUTATIONS.SET_EXPORT_REQUEST,
-            res.data.request
-          )
-        } else {
-          handleError(context, null)
-        }
-      })
-      .catch((error) => handleError(context, error))
+    handleApiRequest(
+      context,
+      authApi.post('auth/account/export/request'),
+      (data) => {
+        context.commit(
+          AUTH_USER_STORE.MUTATIONS.SET_EXPORT_REQUEST,
+          data.request
+        )
+      }
+    )
   },
   [AUTH_USER_STORE.ACTIONS.GET_REQUEST_DATA_EXPORT](
     context: ActionContext<IAuthUserState, IRootState>
   ): void {
     context.commit(ROOT_STORE.MUTATIONS.EMPTY_ERROR_MESSAGES)
-    authApi
-      .get('auth/account/export')
-      .then((res) => {
-        if (res.data.status === 'success') {
-          context.commit(
-            AUTH_USER_STORE.MUTATIONS.SET_EXPORT_REQUEST,
-            res.data.request
-          )
-        } else {
-          handleError(context, null)
-        }
-      })
-      .catch((error) => handleError(context, error))
+    handleApiRequest(context, authApi.get('auth/account/export'), (data) => {
+      context.commit(AUTH_USER_STORE.MUTATIONS.SET_EXPORT_REQUEST, data.request)
+    })
   },
   [AUTH_USER_STORE.ACTIONS.GET_BLOCKED_USERS](
     context: ActionContext<IAuthUserState, IRootState>,
@@ -671,28 +586,22 @@ export const actions: ActionTree<IAuthUserState, IRootState> &
   ): void {
     context.commit(ROOT_STORE.MUTATIONS.EMPTY_ERROR_MESSAGES)
     context.commit(AUTH_USER_STORE.MUTATIONS.UPDATE_USER_LOADING, true)
-    authApi
-      .get('auth/blocked-users', { params: payload })
-      .then((res) => {
-        if (res.data.status === 'success') {
-          context.commit(
-            AUTH_USER_STORE.MUTATIONS.UPDATE_BLOCKED_USERS,
-            res.data.blocked_users
-          )
-          context.commit(
-            USERS_STORE.MUTATIONS.UPDATE_USERS_PAGINATION,
-            res.data.pagination
-          )
-        } else {
-          handleError(context, null)
-        }
-      })
-      .catch((error) => {
-        handleError(context, error)
-      })
-      .finally(() =>
-        context.commit(AUTH_USER_STORE.MUTATIONS.UPDATE_USER_LOADING, false)
-      )
+    handleApiRequest(
+      context,
+      authApi.get('auth/blocked-users', { params: payload }),
+      (data) => {
+        context.commit(
+          AUTH_USER_STORE.MUTATIONS.UPDATE_BLOCKED_USERS,
+          data.blocked_users
+        )
+        context.commit(
+          USERS_STORE.MUTATIONS.UPDATE_USERS_PAGINATION,
+          data.pagination
+        )
+      }
+    ).finally(() =>
+      context.commit(AUTH_USER_STORE.MUTATIONS.UPDATE_USER_LOADING, false)
+    )
   },
   [AUTH_USER_STORE.ACTIONS.GET_USER_SANCTION](
     context: ActionContext<IAuthUserState, IRootState>,
@@ -700,26 +609,18 @@ export const actions: ActionTree<IAuthUserState, IRootState> &
   ): void {
     context.commit(ROOT_STORE.MUTATIONS.EMPTY_ERROR_MESSAGES)
     context.commit(AUTH_USER_STORE.MUTATIONS.UPDATE_USER_LOADING, true)
-    authApi
-      .get(`auth/account/sanctions/${actionId}`)
-      .then((res) => {
-        if (res.data.status === 'success') {
-          context.commit(
-            AUTH_USER_STORE.MUTATIONS.SET_USER_SANCTION,
-            res.data.sanction
-          )
-        } else {
-          handleError(context, null)
-        }
-      })
-      .catch((error) => {
-        if (error.message !== 'canceled') {
-          handleError(context, error)
-        }
-      })
-      .finally(() =>
-        context.commit(AUTH_USER_STORE.MUTATIONS.UPDATE_USER_LOADING, false)
-      )
+    handleApiRequest(
+      context,
+      authApi.get(`auth/account/sanctions/${actionId}`),
+      (data) => {
+        context.commit(
+          AUTH_USER_STORE.MUTATIONS.SET_USER_SANCTION,
+          data.sanction
+        )
+      }
+    ).finally(() =>
+      context.commit(AUTH_USER_STORE.MUTATIONS.UPDATE_USER_LOADING, false)
+    )
   },
   [AUTH_USER_STORE.ACTIONS.UPDATE_USER_NOTIFICATIONS_PREFERENCES](
     context: ActionContext<IAuthUserState, IRootState>,
@@ -727,23 +628,19 @@ export const actions: ActionTree<IAuthUserState, IRootState> &
   ): void {
     context.commit(ROOT_STORE.MUTATIONS.EMPTY_ERROR_MESSAGES)
     context.commit(AUTH_USER_STORE.MUTATIONS.UPDATE_USER_LOADING, true)
-    authApi
-      .post('auth/profile/edit/notifications', payload)
-      .then((res) => {
-        if (res.data.status === 'success') {
-          context.commit(
-            AUTH_USER_STORE.MUTATIONS.UPDATE_AUTH_USER_PROFILE,
-            res.data.data
-          )
-          router.push('/profile/notifications')
-        } else {
-          handleError(context, null)
-        }
-      })
-      .catch((error) => handleError(context, error))
-      .finally(() =>
-        context.commit(AUTH_USER_STORE.MUTATIONS.UPDATE_USER_LOADING, false)
-      )
+    handleApiRequest(
+      context,
+      authApi.post('auth/profile/edit/notifications', payload),
+      (data) => {
+        context.commit(
+          AUTH_USER_STORE.MUTATIONS.UPDATE_AUTH_USER_PROFILE,
+          data.data
+        )
+        router.push('/profile/notifications')
+      }
+    ).finally(() =>
+      context.commit(AUTH_USER_STORE.MUTATIONS.UPDATE_USER_LOADING, false)
+    )
   },
   [AUTH_USER_STORE.ACTIONS.UPDATE_USER_MESSAGE_PREFERENCES](
     context: ActionContext<IAuthUserState, IRootState>,
@@ -752,25 +649,21 @@ export const actions: ActionTree<IAuthUserState, IRootState> &
     context.commit(ROOT_STORE.MUTATIONS.EMPTY_ERROR_MESSAGES)
     context.commit(AUTH_USER_STORE.MUTATIONS.UPDATE_USER_LOADING, true)
 
-    authApi
-      .post('auth/profile/edit/messages', payload.preferences)
-      .then((res) => {
-        if (res.data.status === 'success') {
-          context.commit(
-            AUTH_USER_STORE.MUTATIONS.UPDATE_AUTH_USER_PROFILE,
-            res.data.data
-          )
-          if (payload.redirectToProfile) {
-            router.push('/profile/messages')
-          }
-        } else {
-          handleError(context, null)
+    handleApiRequest(
+      context,
+      authApi.post('auth/profile/edit/messages', payload.preferences),
+      (data) => {
+        context.commit(
+          AUTH_USER_STORE.MUTATIONS.UPDATE_AUTH_USER_PROFILE,
+          data.data
+        )
+        if (payload.redirectToProfile) {
+          router.push('/profile/messages')
         }
-      })
-      .catch((error) => handleError(context, error))
-      .finally(() =>
-        context.commit(AUTH_USER_STORE.MUTATIONS.UPDATE_USER_LOADING, false)
-      )
+      }
+    ).finally(() =>
+      context.commit(AUTH_USER_STORE.MUTATIONS.UPDATE_USER_LOADING, false)
+    )
   },
   [AUTH_USER_STORE.ACTIONS.GET_TIMEZONES](
     context: ActionContext<IAuthUserState, IRootState>
@@ -887,21 +780,17 @@ export const actions: ActionTree<IAuthUserState, IRootState> &
   ): void {
     context.commit(ROOT_STORE.MUTATIONS.EMPTY_ERROR_MESSAGES)
     context.commit(AUTH_USER_STORE.MUTATIONS.UPDATE_USER_LOADING, true)
-    authApi
-      .post(`workouts/upload-tasks/${taskId}/abort`)
-      .then((res) => {
-        if (res.data.status === 'success') {
-          context.commit(
-            AUTH_USER_STORE.MUTATIONS.SET_ARCHIVE_UPLOAD_TASK,
-            res.data.task
-          )
-        } else {
-          handleError(context, null)
-        }
-      })
-      .catch((error) => handleError(context, error))
-      .finally(() =>
-        context.commit(AUTH_USER_STORE.MUTATIONS.UPDATE_USER_LOADING, false)
-      )
+    handleApiRequest(
+      context,
+      authApi.post(`workouts/upload-tasks/${taskId}/abort`),
+      (data) => {
+        context.commit(
+          AUTH_USER_STORE.MUTATIONS.SET_ARCHIVE_UPLOAD_TASK,
+          data.task
+        )
+      }
+    ).finally(() =>
+      context.commit(AUTH_USER_STORE.MUTATIONS.UPDATE_USER_LOADING, false)
+    )
   },
 }

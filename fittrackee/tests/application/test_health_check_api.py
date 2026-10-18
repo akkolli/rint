@@ -4,6 +4,7 @@ from unittest.mock import patch
 from flask import Flask
 
 from fittrackee import db
+from fittrackee.tests.custom_asserts import assert_response
 
 
 class TestHealthCheck:
@@ -27,10 +28,9 @@ class TestDbHealthCheck:
 
         response = client.get(self.route)
 
-        assert response.status_code == 200
-        data = json.loads(response.data.decode())
-        assert data["message"] == "db available"
-        assert data["status"] == "success"
+        assert_response(
+            response, 200, message="db available", status="success"
+        )
 
     def test_it_returns_500_when_db_is_not_available(self, app: Flask) -> None:
         client = app.test_client()
@@ -38,7 +38,6 @@ class TestDbHealthCheck:
         with patch.object(db.session, "execute", side_effect=Exception()):
             response = client.get(self.route)
 
-        assert response.status_code == 500
-        data = json.loads(response.data.decode())
-        assert data["message"] == "db unavailable"
-        assert data["status"] == "error"
+        assert_response(
+            response, 500, message="db unavailable", status="error"
+        )

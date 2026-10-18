@@ -7,11 +7,11 @@ import type {
   IStatisticsActions,
   IStatisticsState,
 } from '@/store/modules/statistics/types'
+import { handleApiRequest } from '@/store/request'
 import type {
   IUserSportStatisticsPayload,
   IUserStatisticsPayload,
 } from '@/types/statistics'
-import { handleError } from '@/utils'
 
 export const actions: ActionTree<IStatisticsState, IRootState> &
   IStatisticsActions = {
@@ -20,21 +20,18 @@ export const actions: ActionTree<IStatisticsState, IRootState> &
     payload: IUserStatisticsPayload
   ): void {
     context.commit(ROOT_STORE.MUTATIONS.EMPTY_ERROR_MESSAGES)
-    authApi
-      .get(`stats/${payload.username}/by_time`, {
+    handleApiRequest(
+      context,
+      authApi.get(`stats/${payload.username}/by_time`, {
         params: payload.params,
-      })
-      .then((res) => {
-        if (res.data.status === 'success') {
-          context.commit(
-            STATS_STORE.MUTATIONS.UPDATE_USER_STATS,
-            res.data.data.statistics
-          )
-        } else {
-          handleError(context, null)
-        }
-      })
-      .catch((error) => handleError(context, error))
+      }),
+      (data) => {
+        context.commit(
+          STATS_STORE.MUTATIONS.UPDATE_USER_STATS,
+          data.data.statistics
+        )
+      }
+    )
   },
   [STATS_STORE.ACTIONS.GET_USER_SPORT_STATS](
     context: ActionContext<IStatisticsState, IRootState>,
@@ -42,27 +39,23 @@ export const actions: ActionTree<IStatisticsState, IRootState> &
   ): void {
     context.commit(ROOT_STORE.MUTATIONS.EMPTY_ERROR_MESSAGES)
     context.commit(STATS_STORE.MUTATIONS.UPDATE_STATS_LOADING, true)
-    authApi
-      .get(`stats/${payload.username}/by_sport`, {
+    handleApiRequest(
+      context,
+      authApi.get(`stats/${payload.username}/by_sport`, {
         params: { sport_id: payload.sportId },
-      })
-      .then((res) => {
-        if (res.data.status === 'success') {
-          context.commit(
-            STATS_STORE.MUTATIONS.UPDATE_USER_SPORT_STATS,
-            res.data.data.statistics
-          )
-          context.commit(
-            STATS_STORE.MUTATIONS.UPDATE_TOTAL_WORKOUTS,
-            res.data.data.total_workouts
-          )
-        } else {
-          handleError(context, null)
-        }
-      })
-      .catch((error) => handleError(context, error))
-      .finally(() =>
-        context.commit(STATS_STORE.MUTATIONS.UPDATE_STATS_LOADING, false)
-      )
+      }),
+      (data) => {
+        context.commit(
+          STATS_STORE.MUTATIONS.UPDATE_USER_SPORT_STATS,
+          data.data.statistics
+        )
+        context.commit(
+          STATS_STORE.MUTATIONS.UPDATE_TOTAL_WORKOUTS,
+          data.data.total_workouts
+        )
+      }
+    ).finally(() =>
+      context.commit(STATS_STORE.MUTATIONS.UPDATE_STATS_LOADING, false)
+    )
   },
 }

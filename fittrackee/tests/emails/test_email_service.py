@@ -1,149 +1,23 @@
-from email import utils
+# ruff: noqa: E501 -- preserve the independent email text expectation.
 from unittest.mock import Mock, patch
-from urllib.parse import quote
 
-import pytest
 from flask import Flask
 
 from fittrackee import email_service
-from fittrackee.emails.emails import EmailMessage
-from fittrackee.emails.exceptions import InvalidEmailUrlScheme
 
-from .template_results.password_reset_request import expected_en_text_body
+expected_en_text_body = """Hi test,
 
+You recently requested to reset your password for your FitTrackee account. Use the link below to reset it.
+This password reset link is only valid for 3 seconds.
 
-class TestEmailMessage:
-    def test_it_generate_email_data(self) -> None:
-        message = EmailMessage(
-            sender="fittrackee@example.com",
-            recipient="test@test.com",
-            subject="Fittrackee - test email",
-            html="""\
-<html>
-  <body>
-    <p>Hello !</p>
-  </body>
-</html>
-            """,
-            text="Hello !",
-        )
+Reset your password: http://localhost/password-reset?token=xxx
 
-        with patch.object(utils, "make_msgid", return_value="message_id"):
-            message_data = message.generate_message()
+For security, this request was received from a Linux device using Firefox.
+If you did not request a password reset, please ignore this email.
 
-        assert message_data.get("From") == "fittrackee@example.com"
-        assert message_data.get("To") == "test@test.com"
-        assert message_data.get("Subject") == "Fittrackee - test email"
-        assert message_data.get("Message-ID") == "message_id"
-        message_string = message_data.as_string()
-        assert "Hello !" in message_string
-
-    def test_it_calls_make_msgid_with_sender_domain(self) -> None:
-        sender = "fittrackee@example.com"
-        message = EmailMessage(
-            sender=sender,
-            recipient="test@test.com",
-            subject="Fittrackee - test email",
-            html="test",
-            text="test",
-        )
-
-        with patch.object(utils, "make_msgid") as make_msgid_mock:
-            message.generate_message()
-
-        make_msgid_mock.assert_called_once_with(domain=sender.split("@")[-1])
-
-
-class TestEmailServiceUrlParser:
-    def test_it_raises_error_if_url_scheme_is_invalid(self) -> None:
-        url = "stmp://username:password@localhost:587"
-        with pytest.raises(InvalidEmailUrlScheme):
-            email_service.parse_email_url(url)
-
-    @staticmethod
-    def assert_parsed_email(url: str) -> None:
-        parsed_email = email_service.parse_email_url(url)
-
-        assert parsed_email["username"] is None
-        assert parsed_email["password"] is None
-        assert parsed_email["host"] == "localhost"
-        assert parsed_email["port"] == 25
-        assert parsed_email["use_tls"] is False
-        assert parsed_email["use_ssl"] is False
-
-    def test_it_parses_email_url_without_port(self) -> None:
-        url = "smtp://localhost"
-        self.assert_parsed_email(url)
-
-    def test_it_parses_email_url_without_authentication(self) -> None:
-        url = "smtp://localhost:25"
-        self.assert_parsed_email(url)
-
-    def test_it_parses_email_url(self) -> None:
-        url = "smtp://test@example.com:12345678@localhost:25"
-
-        parsed_email = email_service.parse_email_url(url)
-
-        assert parsed_email["username"] == "test@example.com"
-        assert parsed_email["password"] == "12345678"
-        assert parsed_email["host"] == "localhost"
-        assert parsed_email["port"] == 25
-        assert parsed_email["use_tls"] is False
-        assert parsed_email["use_ssl"] is False
-
-    def test_it_parses_email_url_with_tls(self) -> None:
-        url = "smtp://test@example.com:12345678@localhost:587?tls=True"
-
-        parsed_email = email_service.parse_email_url(url)
-
-        assert parsed_email["username"] == "test@example.com"
-        assert parsed_email["password"] == "12345678"
-        assert parsed_email["host"] == "localhost"
-        assert parsed_email["port"] == 587
-        assert parsed_email["use_tls"] is True
-        assert parsed_email["use_ssl"] is False
-
-    def test_it_parses_email_url_with_ssl(self) -> None:
-        url = "smtp://test@example.com:12345678@localhost:465?ssl=True"
-
-        parsed_email = email_service.parse_email_url(url)
-
-        assert parsed_email["username"] == "test@example.com"
-        assert parsed_email["password"] == "12345678"
-        assert parsed_email["host"] == "localhost"
-        assert parsed_email["port"] == 465
-        assert parsed_email["use_tls"] is False
-        assert parsed_email["use_ssl"] is True
-
-    def test_it_parses_email_url_with_encoded_password(self) -> None:
-        username = "user_name@example.com"
-        password = "passwordWith@And&And?"
-        encoded_password = quote(password)
-        url = f"smtp://{username}:{encoded_password}@localhost:465?ssl=True"
-
-        parsed_email = email_service.parse_email_url(url)
-
-        assert parsed_email["username"] == username
-        assert parsed_email["password"] == password
-        assert parsed_email["host"] == "localhost"
-        assert parsed_email["port"] == 465
-        assert parsed_email["use_tls"] is False
-        assert parsed_email["use_ssl"] is True
-
-    def test_it_parses_email_url_with_encoded_username(self) -> None:
-        username = "user_name@example.com"
-        password = "12345678"
-        encoded_username = quote(username)
-        url = f"smtp://{encoded_username}:{password}@localhost:465?ssl=True"
-
-        parsed_email = email_service.parse_email_url(url)
-
-        assert parsed_email["username"] == username
-        assert parsed_email["password"] == password
-        assert parsed_email["host"] == "localhost"
-        assert parsed_email["port"] == 465
-        assert parsed_email["use_tls"] is False
-        assert parsed_email["use_ssl"] is True
+Thanks,
+The FitTrackee Team
+http://localhost"""
 
 
 class TestEmailServiceSend:

@@ -7,6 +7,31 @@ visibility, activities, media, follows, comments, likes, moderation and exports.
 The Vue client remains the web application. Native SwiftUI iOS and watchOS
 clients use the same authenticated service.
 
+## Maintenance boundaries
+
+Keep response-status checks and API error handling in
+`fittrackee_client/src/store/request.ts`. Store actions own their mutations,
+navigation and loading state. Custom response contracts, such as HTTP 204,
+remain explicit in their actions.
+
+Translation folders contain JSON sections assembled by `src/locales/messages.ts`.
+`src/i18n.ts` loads a selected language once and keeps English as the fallback;
+do not import all languages into startup code. Supported language labels and
+date locales live in `src/utils/locales.ts`.
+
+Backend scope expectations belong in `fittrackee/tests/test_scope_contracts.py`.
+HTTP status and JSON envelope checks share `fittrackee/tests/custom_asserts.py`'s
+`assert_response`. Named fields use exact equality; `contains` is reserved for
+contracts that explicitly permit substring matches. Keep domain and authorization
+assertions in their scenarios rather than deriving expectations from application
+code.
+The compact regression suite prioritizes security boundaries and critical user
+workflows. Email delivery tests retain an independent password-reset expectation;
+the exhaustive rendering snapshots have been removed. Add related assertions to
+the appropriate scenario with a useful failure label. Keep separate scenarios
+where fixture or transaction isolation matters. See [test scope](TESTING.md) and
+[validation commands](RINT.md#validation).
+
 ## Activity contract
 
 Original recordings are retained. A versioned, device-independent stream stores
@@ -111,8 +136,10 @@ Native protected maps, interval/comparison controls, community profiles,
 follow requests, inbox, moderation and privacy/unit preferences are implemented.
 Earlier FitTrackee originals can be backfilled into `rint_analysis_cache` in
 resumable batches, preserving source files and endpoint protection. Route-level
-web modules now load lazily, reducing the initial main bundle from approximately
-2.27 MB to 1.72 MB uncompressed; further bundle work is still needed.
+web modules and selected language packs load lazily. The current production main
+JavaScript chunk is approximately 1.00 MB minified (327 KB gzipped), down from
+1.72 MB before language loading was consolidated. These figures describe the
+main chunk; maps, charts and password dictionaries have separate chunks.
 
 Outstanding work includes physical recording/battery/Health-save acceptance,
 native push delivery and full touch/picker acceptance, large real export validation and per-leg multisport. WatchConnectivity
