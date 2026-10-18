@@ -46,11 +46,9 @@ jobs:
 
   end2end_with_sources:
     name: e2e tests with sources (Node 24)
-    needs: ["python"]
     uses: ./.github/workflows/.workflow-e2e-with-sources.yml
 
   build_package:
-    needs: ["python"]
     runs-on: ubuntu-latest
     steps:
 

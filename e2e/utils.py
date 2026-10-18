@@ -30,6 +30,15 @@ def visible(selenium, selector):
     )
 
 
+def wait_for_account(selenium, user):
+    WebDriverWait(selenium, 20).until(
+        EC.text_to_be_present_in_element(
+            (By.CSS_SELECTOR, 'summary[aria-label="Account menu"]'),
+            user["username"],
+        )
+    )
+
+
 def logout(selenium):
     visible(selenium, 'summary[aria-label="Account menu"]').click()
     WebDriverWait(selenium, 10).until(
@@ -112,10 +121,10 @@ def confirm_account(selenium, user):
 
     link = WebDriverWait(selenium, 60).until(confirmation_link)
     selenium.get(link)
-    visible(selenium, 'summary[aria-label="Account menu"]')
+    wait_for_account(selenium, user)
 
 
 def login_valid_user(selenium, user):
     login(selenium, user)
-    visible(selenium, 'summary[aria-label="Account menu"]')
+    wait_for_account(selenium, user)
     return user

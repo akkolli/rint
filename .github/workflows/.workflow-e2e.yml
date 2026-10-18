@@ -72,7 +72,7 @@ jobs:
           path: dist/
 
       - name: Install fittrackee package
-        run: python3 -m pip install dist/fittrackee-$(cat VERSION).tar.gz
+        run: python3 -m pip install --upgrade --force-reinstall dist/fittrackee-$(cat VERSION).tar.gz
 
       - name: Run migrations
         run: ftcli db upgrade
@@ -92,7 +92,7 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: ${{ failure() }}
         with:
-          name: log-with${{ inputs.previous-version && '' || 'out' }}-update.out
+          name: browser-package-${{ inputs.previous-version && 'upgrade' || 'fresh' }}-logs
           path: |
             nohup.out
             browser-results.xml
