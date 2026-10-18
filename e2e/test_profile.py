@@ -21,6 +21,9 @@ class TestProfile:
                 == label
             )
 
+        visible(
+            selenium, f'.athlete-actions a[href="/users/{user["username"]}"]'
+        ).click()
         user_infos = visible(selenium, "#user-infos")
         assert "Registration date" in user_infos.text
         assert "First name" not in user_infos.text

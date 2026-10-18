@@ -12,8 +12,7 @@ class TestWorkout:
         register_valid_user(selenium)
         visible(selenium, '.r-primary-nav a[href="/workouts/add"]').click()
         visible(selenium, "#sport")
-        radio_button = selenium.find_element(By.ID, "withoutGpx")
-        radio_button.click()
+        visible(selenium, 'label[for="withoutGpx"]').click()
 
         select = Select(selenium.find_element(By.ID, "sport"))
         select.select_by_index(1)
